@@ -8,10 +8,11 @@ class Data(Enum):
     Zero = "0"
 
 
-class Cable:
+class CableDuplex:
     def __init__(self):
         # conozco la informacion qu esta pasando por el cable
-        self.data = Data.Null  # 0 1 Null son los tres estados en los que puede estar el cable
+        self.dataA = Data.Null  # 0 1 Null son los tres estados en los que puede estar el cable
+        self.dataB = Data.Null # informacion que va hacia el puertoB
         self.transfer_port = None
         # puerto de donde se esta enviando la informacion
         # es muy util para cuando haya que desconectar
@@ -45,6 +46,11 @@ class Host:
         self.stopped_time = 0
         self.failed_attempts = 0
         # me permite conecer  si una PC esta transmitiendo o no en un momento determinado informacion
+        # direccion mac que tendria la PC
+        self.mac = None
+        # se escribiran solamente los datos recibidos por esta PC y quien los recibio
+        self.file_d =f"./Hosts/{name}_data.txt"
+
         f = open(self.file, 'w')
         f.close()
 
@@ -110,4 +116,24 @@ class Hub:
     def put_data(self, data:str, port: Port):
         port.cable.data = data
         port.cable.transfer_port = port
+
+class Switch:
+     def __init__(self, name: str, ports_amount: int) -> None:
+        self.name = name
+        self.connections = [None] * ports_amount
+        self.file = f"./Hubs/{name}.txt"
+        self.ports = []  # instance a list of ports
+        # con esto se si el hub esta retrasmitiendo la informacion proveniente de un host que esta enviando info y que informacion
+        # es resulta util para detectar colisiones
+        self.bit_sending = None
+        # diccionario de la forma key = mac value= PC instance 
+        self.map={}
+
+        for i in range(ports_amount):
+            portname = f"{name}_{i + 1}"
+            port = Port(portname, self)
+            self.ports.append(port)
+        # make the hub file
+        f = open(self.file, 'w')
+        f.close()
 
