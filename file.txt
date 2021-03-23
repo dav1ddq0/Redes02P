@@ -1,0 +1,6 @@
+5 create host pc1
+6 create hub hub1 3
+7 connect pc1_1 hub1_1
+10 send pc1 10100101
+20 send pc1 10
+22 send pc1 11

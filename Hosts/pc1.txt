@@ -1,0 +1,12 @@
+10 pc1_1 send 1 ok
+13 pc1_1 send 0 ok
+16 pc1_1 send 1 ok
+19 pc1_1 send 0 ok
+22 pc1_1 send 0 ok
+25 pc1_1 send 1 ok
+28 pc1_1 send 0 ok
+31 pc1_1 send 1 ok
+34 pc1_1 send 1 ok
+37 pc1_1 send 0 ok
+40 pc1_1 send 1 ok
+43 pc1_1 send 1 ok
