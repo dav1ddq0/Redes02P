@@ -71,6 +71,14 @@ class Device_handler:
 
         return True
 
+    def __validate_mac(self,pc):
+        port = pc + "_1"
+        if port not in self.ports.keys():
+            print(f"{bcolors.WARNING} invalid mac assign{bcolors.ENDC} PC {bcolors.OKGREEN}{pc} {bcolors.ENDC} {errors[2]}")
+            return False
+
+
+
     def finished_network_transmission(self):
         # al no quedar mas instruccionens por ejecutar
         # mantengo recorrido de los devices mientras haya alguna
@@ -102,6 +110,15 @@ class Device_handler:
         # agrego cada puerto que tiene un hub al dicc que contiene todos puertos de la red
         for port in newhub.ports:
             self.ports[port.name] = port
+    
+    def create_switch(self,name: str,ports, time: int):
+        self.__update_network_status(time)
+        newswitch = objs.Switch(name, ports)
+        for port in newswitch.ports:
+            self.ports[port.name] = port
+
+    def mac(self, host, address, time: int):
+        if __validate_mac():
 
     def setup_connection(self, name_port1: str, name_port2: str, time: int):
         # actualiza la red hasta que llegues al time en que vino la nueva instruccion

@@ -9,6 +9,7 @@ handler = dh.Device_handler(slot_time)
 caller ={
         "hub" : lambda args:  handler.create_hub(args[0], args[1], args[2]),
         "host" : lambda args : handler.create_pc(args[0], args[1]),
+        "switch" : lambda args: handler.create_switch(args[0], args[1],args[2]),
         "connect": lambda args : handler.setup_connection(args[0],args[1], args[2]),
         "send": lambda args : handler.send(args[0], args[1], args[2]),
         "disconnect": lambda args :  handler.shutdown_connection(args[0], args[1])

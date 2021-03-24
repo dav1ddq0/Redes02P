@@ -7,16 +7,16 @@ class Data(Enum):
     One = "1"
     Zero = "0"
 
+class Cable:
+    def __init__(self):
+        # conozco la informacion qu esta pasando por el cable
+        self.data = Data.Null  # 0 1 Null son los tres estados en los que puede estar el cable
 
 class CableDuplex:
     def __init__(self):
-        # conozco la informacion qu esta pasando por el cable
-        self.dataA = Data.Null  # 0 1 Null son los tres estados en los que puede estar el cable
-        self.dataB = Data.Null # informacion que va hacia el puertoB
-        self.transfer_port = None
-        # puerto de donde se esta enviando la informacion
-        # es muy util para cuando haya que desconectar
-
+        # un cable duplex se representaria como dos cables normales 
+        self.cableA = Cable()  
+        self.cableB = Cable() 
 
 class Port:
     def __init__(self, name: str, device) -> None:
@@ -24,8 +24,12 @@ class Port:
         self.name = name
         # con esta propiedad conozco si un cable conectado al puerto
         self.cable = None
+        self.read_channel = None
+        self.write_channel = None
         # un puerto sabe de que dispositvo es
         self.device = device
+        # un puerto conoce con que puerto esta conectado
+        self.next = None
 
 
 class Host:
@@ -38,13 +42,16 @@ class Host:
         self.data = ""
         # guarda todos los bloques de cadenas que aun no han sido enviados
         self.data_pending = queue.Queue()
+        self.data_frame_penfing = queue.Queue()
         # muestra informacion sobre el bit que se esta transmitiendo cuando el host esta enviando informacion
         self.bit_sending = None
+        self.bit_format = None
         self.transmitting_time = 0
         self.transmitting = False
         self.stopped = False
         self.stopped_time = 0
         self.failed_attempts = 0
+        self.frame =""
         # me permite conecer  si una PC esta transmitiendo o no en un momento determinado informacion
         # direccion mac que tendria la PC
         self.mac = None
@@ -64,12 +71,16 @@ class Host:
         message = f"{time} {self.port.name} {action} {data} {terminal}\n"
         self.__update_file(message)
 
+    def data(self, origin_mac, data_frame, time):
+        message = f"{time} {origin_mac} {data_frame}"
+        self.__update_file(message)
+
+
     def put_data(self, data: int):
-        if self.port.cable == None or self.port.cable.data != Data.Null:
+        if self.port.cable == None or self.port.cable.write_channel.data != Data.Null:
             return False
         else:
-            self.port.cable.data = data
-            self.port.cable.transfer_port = self.port
+            self.port.write_channel.data = data
             self.bit_sending = data
             return True
 
@@ -85,6 +96,14 @@ class Host:
             return self.next_bit()    
        
         return None
+
+    def send(self, bit, incoming_port, devices_visited, time):
+        self.log(data, "send", incoming_port, time)
+        self.put_data(bit, incoming_port)
+        self.port.write_channel.data = bit
+        if self.port.next != None:
+            self.port.next.device.send(bit, self.port.next, devices_visited, time)
+
 
 
 class Hub:
@@ -114,19 +133,34 @@ class Hub:
         self.__update_file(message)
 
     def put_data(self, data:str, port: Port):
-        port.cable.data = data
-        port.cable.transfer_port = port
+        port.write_channel.data = data
+
+    def receive(self, bit, port, time):
+        self.log(bit, "receive", port,time)
+
+    def send(self, bit, incoming_port, devices_visited, time):
+        self.log(data, "send", incoming_port, time)
+        self.put_data(bit, incoming_port)
+        devices_visited.append(self.name)
+        for _port in self.ports:
+            if _port != incoming_port and _port.next != None and _port.next.device.name not in devices_visited:
+                _port.next.device.receive(bit, _port.next, time)
+                _port.next.device.send(bit, _port.next, devices_visited, time)
+
+
+
+
+
 
 class Switch:
      def __init__(self, name: str, ports_amount: int) -> None:
         self.name = name
         self.connections = [None] * ports_amount
-        self.file = f"./Hubs/{name}.txt"
+        self.file = f"./Switches/{name}.txt"
         self.ports = []  # instance a list of ports
         # con esto se si el hub esta retrasmitiendo la informacion proveniente de un host que esta enviando info y que informacion
-        # es resulta util para detectar colisiones
-        self.bit_sending = None
-        # diccionario de la forma key = mac value= PC instance 
+        
+        # diccionario de la forma key = mac value= port of device mac
         self.map={}
 
         for i in range(ports_amount):
