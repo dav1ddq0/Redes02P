@@ -1,6 +1,7 @@
 from os import name, stat
 import objs
 import random
+import string
 
 errors = {1 : "do not has a cable connected", 2: "does not exist", 3: "is not free", 4: "the device must be a host",
           5: "host busy (collision)", 6: "has a cable connected, but its other endpoint is not connected to another device" }
@@ -14,6 +15,7 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
 class Device_handler:
     # @property
     # def hosts(self):
@@ -71,13 +73,28 @@ class Device_handler:
 
         return True
 
-    def __validate_mac(self,pc):
+    def __validate_setup_mac(self,pc, mac:str):
         port = pc + "_1"
+        if not all(c in string.hexdigits for c in mac):
+            print(f"{bcolors.WARNING} invalid mac assign{bcolors.ENDC}  {bcolors.OKGREEN}{mac} {bcolors.ENDC} not in hexadecimal")
+            return False
+
         if port not in self.ports.keys():
             print(f"{bcolors.WARNING} invalid mac assign{bcolors.ENDC} PC {bcolors.OKGREEN}{pc} {bcolors.ENDC} {errors[2]}")
             return False
 
 
+    def __valid_mac(self,mac) -> bool:
+        return any(host.mac == mac for host in self.hosts)
+
+    def __validate_send_frame(self,host, destiny_mac, data):
+        if not any(host == h for h in self.hosts):
+            return False
+        if not __valid_mac(destiny_mac):
+            return False
+        if not all(c in string.hexdigits for c in data):
+            return False
+        return True            
 
     def finished_network_transmission(self):
         # al no quedar mas instruccionens por ejecutar
@@ -117,8 +134,11 @@ class Device_handler:
         for port in newswitch.ports:
             self.ports[port.name] = port
 
-    def mac(self, host, address, time: int):
-        if __validate_mac():
+    def setup_mac(self, host, address, time: int):
+        if __validate_setup_mac(host,address):
+            ports[f"{host}_1"].device.mac = address
+
+    def send_frame(self ,host, destiny_mac:str,data:str time: int):
 
     def setup_connection(self, name_port1: str, name_port2: str, time: int):
         # actualiza la red hasta que llegues al time en que vino la nueva instruccion

@@ -171,3 +171,18 @@ class Switch:
         f = open(self.file, 'w')
         f.close()
 
+    def __update_file(self, message: str) -> None:
+        f = open(self.file, 'a')
+        f.write(message)
+        f.close()
+
+    def log(self, data, action, port, time) -> None:
+        message = f"{time} {port} {action} {data}\n"
+        self.__update_file(message)
+
+    def put_data(self, data:str, port: Port):
+        port.write_channel.data = data
+
+    def send(self, bit, incoming_port, devices_visited, time):
+        
+    
