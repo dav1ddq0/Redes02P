@@ -149,8 +149,53 @@ class Hub:
 
 
 
+class Buffer:
+    def __init__(self):
+        self.port = nameport
+        self.incoming_frame_pending = queue.Queue()
+        self.send_frame_pending = queue.Queue()
+        # cadena de informacion que el switch ira transmitiendo por ese puerto hacia otro dispositivos
+        self.sending_frame = ""
+        # cadena de informacion que va recibiendo el switch bit a bit por ese puerto hasta que pueda completar el formato de una trama y decidir para donde
+        # lo envia 
+        self.incoming_frame = ""
+        self.transmitting = False
+        self.receiving = False
+        self.mac = None
+        self.bit = None
+
+    def put_data(self, bit):
+        self.incoming_frame += bit
+
+        # if len(incoming_frame) > 48:
+        #     if not transmitting:
+        #         lendatabin = incoming_frame[32:40]
+        #         lendata = int(lendata,2)
+        #         framedata = [48:]
+        #         if len(framedata) == lendata:
+        #             self.transmitting = True
+        #             macbin =  framedata[0:16]
+        #             # tengo que conv bin to hex
+        #             # asignar ese valor a self.mac
 
 
+        #     else:
+        #         incoming_frame_pending,enq        
+            
+
+
+    def next_bit(self):
+        n = len(self.frame)
+        if n > 0:
+            next = self.frame[0]
+            self.datself.incoming_frame_pending = queue.Queue()a = self.data[1:]
+            return next
+
+        if self.data_pending.qsize() > 0:
+            self.data = self.data_pending.get()
+            return self.next_bit()    
+       
+        return None
 
 class Switch:
      def __init__(self, name: str, ports_amount: int) -> None:
@@ -160,11 +205,13 @@ class Switch:
         self.ports = []  # instance a list of ports
         # con esto se si el hub esta retrasmitiendo la informacion proveniente de un host que esta enviando info y que informacion
         
-        # diccionario de la forma key = mac value= port of device mac
+        # diccionario de la forma key = mac value = port of device mac
         self.map={}
-
+        self.buffers = {}
+        self.frames = []
         for i in range(ports_amount):
             portname = f"{name}_{i + 1}"
+            buffer[portname] = Buffer()
             port = Port(portname, self)
             self.ports.append(port)
         # make the hub file
@@ -180,9 +227,47 @@ class Switch:
         message = f"{time} {port} {action} {data}\n"
         self.__update_file(message)
 
+     def receive(self, bit, port, time):
+        self.log(bit, "receive", port,time)
+
     def put_data(self, data:str, port: Port):
         port.write_channel.data = data
 
+    def check_buffers(self):
+        for port in self.ports:
+            mybuffer = buffers[port]
+            incoming_frame = mybuffer.incoming_frame
+            ## cumple el formato de una trama 16bit outmac 16 inmac 8 bit len 8bit0 data
+            if len(incoming_frame) > 48:
+                if not transmitting:
+                    lendatabin = incoming_frame[32:40]
+                    lendata = int(lendata,2)
+                    framedata = [48:]
+                    if len(framedata) == lendata:
+                        macbin =  framedata[0:16]
+                        machex = '{:X}'.format(int(macbin,2))
+                        if machex not in self.map.keys():
+                        
+                        else:
+                            nextport = map[machex]
+                            if buffer[nextport].sending_frame != "":
+                                buffer[nextport].send_frame_pending.put(incoming_frame)
+                            else:
+                                buffer[nextport].sending_frame
+
+
+
+
+
+                else:
+                    incoming_frame_pending.put(transmitting)   
+
+
+
     def send(self, bit, incoming_port, devices_visited, time):
+        self.buffers[incoming_port].
+                
+
+        
         
     
