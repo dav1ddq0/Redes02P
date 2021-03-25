@@ -139,6 +139,10 @@ class Device_handler:
             ports[f"{host}_1"].device.mac = address
 
     def send_frame(self ,host, destiny_mac:str,data:str time: int):
+        if __validate_send_frame(host,destiny_mac,data):
+            data_frame = format(int(destiny_mac, base = 16), '16b') + format(int(host.mac, base = 16), '16b') + format(len(data), '08b') + format(0, '08b') + format(int(data,base = 16), '04b')
+            
+            return data_frame
 
     def setup_connection(self, name_port1: str, name_port2: str, time: int):
         # actualiza la red hasta que llegues al time en que vino la nueva instruccion
