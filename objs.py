@@ -1,6 +1,6 @@
 from enum import Enum
 import queue
-
+import random
 
 class Data(Enum):
     Null = "Null"
@@ -75,6 +75,34 @@ class Host:
         message = f"{time} {origin_mac} {data_frame}"
         self.__update_file(message)
 
+    def colision_protocol(self):
+            self.transmitting = False
+            # el host no puede enviar en este momento la sennal pues se esta transmitiendo informacion por el canal o no tiene canal para transmitir la informacion
+            self.stopped = True
+            # aumenta la cantidad de intentos fallidos
+            self.failed_attempts += 1 
+            # notifica que hubo una colision y la informacion no pudo enviarse
+            self.log(data, "send", self.time, True)
+            # el rango se duplica en cada intento fallido
+            if self.failed_attempts < 16:
+                nrand = random.randint(1, 2*device.failed_attempts*10)
+                # dada una colision espero un tiempo cada vez mayor para poder volverla a enviar
+                self.stopped_time = nrand * self.slot_time
+            else:
+                # se cumplio el maximo de intentos fallidos permitidos por lo que se decide perder esa info                 
+                device.stopped = True
+                next_bit = self.next_bit()
+                if next_bit != None:
+                    device.bit_sending = next_bit
+                    device.stopped = True
+                    device.stopped_time = 1
+                    device.failed_attempts = 0
+                else:
+                    device.stopped = False
+        # en caso que no haya colision empiezo a regar la informacion  desde el host por toda la red de cables interconectados 
+        # alcanzables por el host             
+
+
 
     def put_data(self, data: int):
         if self.port.cable == None or self.port.cable.write_channel.data != Data.Null:
@@ -98,11 +126,19 @@ class Host:
         return None
 
     def send(self, bit, incoming_port, devices_visited, time):
-        self.log(data, "send", incoming_port, time)
-        self.put_data(bit, incoming_port)
-        self.port.write_channel.data = bit
-        if self.port.next != None:
-            self.port.next.device.send(bit, self.port.next, devices_visited, time)
+        if self.data != "":
+            # agrego esa nueva informacion a una cola de datos sin enviar
+            self.data_pending.put(data)
+        else:
+            self.data = data 
+            if not host.stopped and not host.transmitting:
+                nex_bit = host.next_bit()
+                self.log(next_bit, "send", incoming_port, time)
+                if put_data(next_bit):
+                    if self.port.next != None:
+                        self.port.next.device.receive(bit, self.port.next, devices_visited, time)
+                else:
+                    self.colision_protocol()        
 
 
 
@@ -165,22 +201,7 @@ class Buffer:
         self.bit = None
 
     def put_data(self, bit):
-        self.incoming_frame += bit
-
-        # if len(incoming_frame) > 48:
-        #     if not transmitting:
-        #         lendatabin = incoming_frame[32:40]
-        #         lendata = int(lendata,2)
-        #         framedata = [48:]
-        #         if len(framedata) == lendata:
-        #             self.transmitting = True
-        #             macbin =  framedata[0:16]
-        #             # tengo que conv bin to hex
-        #             # asignar ese valor a self.mac
-
-
-        #     else:
-        #         incoming_frame_pending,enq        
+        self.incoming_frame += bit       
             
 
 
@@ -233,39 +254,42 @@ class Switch:
     def put_data(self, data:str, port: Port):
         port.write_channel.data = data
 
+    # comprobar el en cada momento el cambio interno de un switch
     def check_buffers(self):
         for port in self.ports:
             mybuffer = buffers[port]
             incoming_frame = mybuffer.incoming_frame
             ## cumple el formato de una trama 16bit outmac 16 inmac 8 bit len 8bit0 data
             if len(incoming_frame) > 48:
-                if not transmitting:
-                    lendatabin = incoming_frame[32:40]
-                    lendata = int(lendata,2)
-                    framedata = [48:]
-                    if len(framedata) == lendata:
-                        macbin =  framedata[0:16]
-                        machex = '{:X}'.format(int(macbin,2))
-                        if machex not in self.map.keys():
+               
+                lendatabin = incoming_frame[32:40]
+                lendata = int(lendata,2)
+                framedata = [48:]
+                if len(framedata) == lendata:
+                    macbin =  framedata[0:16]
+                    machex = '{:X}'.format(int(macbin,2))
+                    if machex not in self.map.keys():
                         
-                        else:
-                            nextport = map[machex]
-                            if buffer[nextport].sending_frame != "":
-                                buffer[nextport].send_frame_pending.put(incoming_frame)
+                        for p2 in [p in self.ports if p !=port]:
+                            name = p2.name
+                            if buffer[name].sending_frame != "":
+                                buffer[name].send_frame_pending.put(incoming_frame)
                             else:
-                                buffer[nextport].sending_frame
-
-
-
-
-
-                else:
-                    incoming_frame_pending.put(transmitting)   
-
+                                buffer[name].sending_frame = incoming_frame
+                    else:
+                        nextport = map[machex].name
+                        if buffer[nextport].sending_frame != "":
+                            buffer[nextport].send_frame_pending.put(incoming_frame)
+                        else:
+                            buffer[nextport].sending_frame = incoming_frame
+                
+                mybuffer.incoming_frame = ""
+               
 
 
     def send(self, bit, incoming_port, devices_visited, time):
-        self.buffers[incoming_port].
+        buffer[incoming_port.name].putdata(bit)
+        
                 
 
         
