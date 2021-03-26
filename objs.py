@@ -125,6 +125,9 @@ class Host:
        
         return None
 
+    def receive(self, bit, incoming_port, devices_visited, time):
+        self.log(next_bit, "receive", incoming_port, time)
+
     def send(self, bit, incoming_port, devices_visited, time):
         if self.data != "":
             # agrego esa nueva informacion a una cola de datos sin enviar
@@ -135,6 +138,8 @@ class Host:
                 nex_bit = host.next_bit()
                 self.log(next_bit, "send", incoming_port, time)
                 if put_data(next_bit):
+                    self.transmitting = True
+                    self.transmitting_time = 0
                     if self.port.next != None:
                         self.port.next.device.receive(bit, self.port.next, devices_visited, time)
                 else:
@@ -171,8 +176,9 @@ class Hub:
     def put_data(self, data:str, port: Port):
         port.write_channel.data = data
 
-    def receive(self, bit, port, time):
-        self.log(bit, "receive", port,time)
+    def receive(self, bit, incoming_port, devices_visited, time):
+        self.log(bit, "receive", port, time)
+        self.send(bit, incoming_port, devices_visited, time)
 
     def send(self, bit, incoming_port, devices_visited, time):
         self.log(data, "send", incoming_port, time)
@@ -248,8 +254,10 @@ class Switch:
         message = f"{time} {port} {action} {data}\n"
         self.__update_file(message)
 
-     def receive(self, bit, port, time):
+     def receive(self, bit, incoming_port, devices_visited, time):
         self.log(bit, "receive", port,time)
+        self.buffers[incoming_port.name].putdata(bit)
+        self.check_buffers()
 
     def put_data(self, data:str, port: Port):
         port.write_channel.data = data
@@ -284,11 +292,18 @@ class Switch:
                             buffer[nextport].sending_frame = incoming_frame
                 
                 mybuffer.incoming_frame = ""
+
                
-
-
     def send(self, bit, incoming_port, devices_visited, time):
-        buffer[incoming_port.name].putdata(bit)
+        self.log(bit, "send", incoming_port.name, time)
+        self.put_data(bit, incoming_port)
+        nexport = incoming_port.next
+        nextport.device.receive(bit, incoming_port, devices_visited, time)
+
+
+
+
+        
         
                 
 

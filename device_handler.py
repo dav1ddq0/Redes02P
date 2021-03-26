@@ -138,11 +138,7 @@ class Device_handler:
         if __validate_setup_mac(host,address):
             ports[f"{host}_1"].device.mac = address
 
-    def send_frame(self ,host, destiny_mac:str,data:str time: int):
-        if __validate_send_frame(host,destiny_mac,data):
-            data_frame = format(int(destiny_mac, base = 16), '16b') + format(int(host.mac, base = 16), '16b') + format(len(data), '08b') + format(0, '08b') + format(int(data,base = 16), '04b')
-            
-            return data_frame
+   
 
     def setup_connection(self, name_port1: str, name_port2: str, time: int):
         # actualiza la red hasta que llegues al time en que vino la nueva instruccion
@@ -356,8 +352,13 @@ class Device_handler:
 
         return ischange                
 
-
-
+    
+    def send_frame(self ,host, destiny_mac:str, data:str time: int):
+       if __validate_send_frame(host,destiny_mac,data):
+           data_frame = format(int(destiny_mac, base = 16), '16b') + format(int(host.mac, base = 16), '16b') + format(len(data), '08b') + format(0, '08b') + format(int(data,base = 16), '04b')
+           self.send(host, data_frame, time)
+           
+    
     def send(self, origin_pc, data, time):
         # actualiza primero la red por si todavia no ha llegado a time 
         self.__update_network_status(time)
@@ -374,78 +375,7 @@ class Device_handler:
             # en medio de una transmision o estar esperando producto de una colision a enviar un dato fallido 
             if not host.stopped and not host.transmitting:
                 nex_bit = host.next_bit()
-                self.__send_bit(host, nex_bit)
-
-            
-
-    # Metodo que se encarga de intentar enviar un bit desde una PC
-    def __send_bit(self, origin_pc, data):
-        device = origin_pc
-        device.bit_sending = data
-        # si hubo colision 
-        if not device.put_data(data):
-                device.transmitting = False
-                # el host no puede enviar en este momento la sennal pues se esta transmitiendo informacion por el canal o no tiene canal para transmitir la informacion
-                device.stopped = True
-                # aumenta la cantidad de intentos fallidos
-                device.failed_attempts += 1 
-                # notifica que hubo una colision y la informacion no pudo enviarse
-                device.log(data, "send", self.time, True)
-                # el rango se duplica en cada intento fallido
-                if device.failed_attempts < 16:
-                    nrand = random.randint(1, 2*device.failed_attempts*10)
-                    # dada una colision espero un tiempo cada vez mayor para poder volverla a enviar
-                    device.stopped_time = nrand * self.slot_time
-                else:
-                    # se cumplio el maximo de intentos fallidos permitidos por lo que se decide perder esa info
-                     
-                    device.stopped = True
-                    next_bit = device.next_bit()
-                    if next_bit != None:
-                        device.bit_sending =next_bit
-                        device.stopped = True
-                        device.stopped_time = 1
-                        device.failed_attempts = 0
-                    else:
-                        device.stopped = False
-        # en caso que no haya colision empiezo a regar la informacion  desde el host por toda la red de cables interconectados 
-        # alcanzables por el host                    
-        else:
-            device.transmitting = True
-            device.transmitting_time = 0
-            device.log(data, "send", self.time)
-            # revise el object del puerto 
-            destination_port = self.ports[self.connections[origin_pc.port.name]]
-            destination_device = destination_port.device
-            self.devices_visited.clear()
-            self.__spread_data(destination_device, data, destination_port)
-
-
-    # este metodo se encarga de regar la informacion a retransmitir por todos los cables alcanzables desde un device origen
-
-    def __spread_data(self, device, data, data_incoming_port):
-        # si este device ya fue visitado entonces no tengo nada que hacer
-        if device.name in self.devices_visited:
-            return
-        # agrego el device a la lista de dispositivos visidados
-        self.devices_visited.append(device.name)    
-        if isinstance(device, objs.Host):
-            device.log(data, "receive", self.time)
-            
-        elif isinstance(device, objs.Hub):
-            device.bit_sending = data
-            device.log(data, "receive", data_incoming_port.name, self.time)
-            for port in device.ports:
-                if port != data_incoming_port and port.cable != None and port.cable.data == objs.Data.Null:
-                    # pongo la informacion en el cable
-                    device.put_data(data, port)
-                    # para seguir de forma recursiva por ese puerto es necesario primero verificar que este  este conectado con otro puerto a traves de un cable
-                    # para eso verifico que este en dicc connections pues este guarda todas las conexiones entre puertos a traves de un cable
-                    if port.name in self.connections.keys(): # en caso que este puerto conecte con otro de otro device
-                        device.log(data, "send", port.name, self.time)
-                        next_port = self.ports[self.connections[port.name]]
-                        next_device = self.ports[self.connections[port.name]].device
-
-                        # sigue regando la informacion a otros devices
-                        self.__spread_data(next_device, data, next_port)
-
+                self.devices_visited.clear()
+                host.send(nex_bit, host.port, devices_visited, time)           
+    
+   
