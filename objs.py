@@ -243,6 +243,7 @@ class Buffer:
         self.receiving = False
         self.mac = None
         self.bit_sending = None
+        self.transmittig_time = 0
 
     def put_data(self, bit):
         self.incoming_frame += bit       
@@ -347,6 +348,8 @@ class Switch:
     def missing_data(self,incoming_port):
         return         
 
+    def check_transmitting(self):
+        return any(buffer.transmitting for buffer in self.buffer.values())
         
         
     

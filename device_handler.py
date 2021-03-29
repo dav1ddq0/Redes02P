@@ -23,6 +23,7 @@ class Device_handler:
 
     def __init__(self, slot_time: int) -> None:
         self.hosts = []
+        self.switches = []
         self.connections = {}
         self.time = 0
         self.slot_time = slot_time
@@ -100,10 +101,10 @@ class Device_handler:
         # al no quedar mas instruccionens por ejecutar
         # mantengo recorrido de los devices mientras haya alguna
         # actividad de los host      
-        while True:
+        while any(host.transmitting or host.stopped for host in self.hosts) or any(switch.check_transmitting() for switch in self.switches):
             self.time += 1
-            if not self.__update_devices():
-                break
+            self.__update_devices():
+
 
     def __update_network_status(self, time: int):
         # actualizo la red hasta el time de la instruccion actual
@@ -131,8 +132,10 @@ class Device_handler:
     def create_switch(self,name: str,ports, time: int):
         self.__update_network_status(time)
         newswitch = objs.Switch(name, ports)
+        self.switches.append(newswitch)
         for port in newswitch.ports:
             self.ports[port.name] = port
+
 
     def setup_mac(self, host, address, time: int):
         if __validate_setup_mac(host,address):
@@ -225,7 +228,6 @@ class Device_handler:
             if host.stopped:
                 host.stopped_time -= 1
                 if host.stopped_time == 0:
-                    
                     self.devices_visited.clear()
                     # vuelve a intentar enviar el bit que habia fallado previamente
                     host.retry(self.devices_visited, self.time)
