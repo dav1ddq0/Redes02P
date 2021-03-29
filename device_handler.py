@@ -153,154 +153,63 @@ class Device_handler:
                 print("Ports of the same device is not possible connected")
                 
             else:
-                self.connections[name_port1] = name_port2
-                self.connections[name_port2] = name_port1
-                newcable = objs.Cable()
+                port1.next = port2
+                port2.next = port1
+                newcable = objs.CableDuplex()
                 port1.cable = newcable
                 port2.cable = newcable
+                port1.write_channel = newcable.cableA
+                port2.read_channel  = newcable.cableA
+                port2.write_channel = newcable.cableB
+                port1.read_channel  = newcable.cableB
+                
                 # si los dispositvos  pertenecientes a los puertos estan transmitiendo informacion a la vez
                 #
                 # en caso que conecte un hub a otro hub que estan retransmitiendo la informacion desde distintos host
                 # se manda un sennal para tumbar la transmision en ambos lados y los host volveraran a intentar 
                 # transmitir la informacion luego de un tiempo aleatorio en cada uno 
-                if device1.bit_sending != None and device2.bit_sending != None:
+                if isinstance(device1, objs.Host) and device1.bit_sending:
+                    port1.write_channel = device1.bit_sending
                     self.devices_visited.clear()
-                    self.__clear_cables_data(device1, port1, True)
+                    device2.receive(device1.bit_sending, port2, self.devices_visited, time)
+
+                if isinstance(device2, objs.Host) and device2.bit_sending:
+                    port2.write_channel = device2.bit_sending
                     self.devices_visited.clear()
-                    self.__clear_cables_data(device2, port2, True)
-                # en caso que device1 esta transmitiendo informacion riego la informacion por los nuevos
-                # cables que ahora estan interconectados desde el device2 
-                elif device1.bit_sending != None:
-                    
-                    if isinstance(device1, objs.Host):
-                        if device1.transmitting:    
-                            self.__send_bit(device1,device1.bit_sending)
-                        else:
-                            return    
-                    else:
-                        port1.cable.data = device1.bit_sending
-                        self.devices_visited.clear()
-                        self.__spread_data(device2, device1.bit_sending, port2)
-                    
-                # en caso que device2 esta transmitiendo informacion riego la informacion por los nuevos
-                # cables que ahora estan interconectados desde el device1    
-                elif device2.bit_sending != None:
-                   
-                    if isinstance(device2, objs.Host): 
-                        if device2.transmitting:
-                            self.__send_bit(device1,device1.bit_sending)     
-                        else:
-                            return            
-                    else:
-                        port2.cable.data = device2.bit_sending                      
-                        self.devices_visited.clear()
-                        self.__spread_data(device1, device2.bit_sending, port1)
-                
+                    device1.receive(device2.bit_sending, port1, self.devices_visited, time)
 
-       
-
-
-
-    # hay que remover los datos de los cables que se quedaron desconectados del host que estaba enviando informacion
-    def __clear_cables_data(self, device,incoming_port:objs.Port, stop_signal : bool = False):
-        # en caso que llegue a una PC es porque no tengo
-        # que seguir verificando conexiones muertas pues la pc solo puede enviar o recibir
-        if device.name in self.devices_visited:
-            return
-        self.devices_visited.append(device.name) 
-        if stop_signal and isinstance(device, objs.Host):
-            if device.transmitting:
-                device.stopped = True
-                device.transmitting = False
-                device.failed_attempts = 1
-                # notifica que hubo una colision y la informacion no pudo enviarse
-                device.log(device.bit_sending, "send", self.time, True)
-                # el rango se duplica en cada intento fallido
-                if device.failed_attempts < 16:
-                    nrand =  random.randint(1, 2*device.failed_attempts*10)
-                    # dada una colision espero un tiempo cada vez mayor para poder volverla a enviar
-                    device.stopped_time = nrand * device.failed_attempts
-                else:
-                    # se cumplio el maximo de intentos fallidos permitidos por lo que se decide perder esa info
-                    nex_bit = device.next_bit()
-                    # if nex_bit == None and host.data_pending.qsize() > 0:
-                    #   # obtengo la proxima cadena de bits a transmitir sacando el proximo elemento de la cola
-                    #   host.data = host.data_pending.get()          
-                    #   nex_bit = host.next_bit()
-                    if nex_bit != None:
-                        device.bit = nex_bit
-                        device.stopped_time = 1
-                        device.failed_attempts = 0
-                    else:
-                        device.bit_sending = None
-                        device.stopped = False
-                        device.failed_attempts = 0
-
-            return
-    
-        elif isinstance(device, objs.Hub):
-            device.bit_sending = None
-            for port in device.ports:
-                if port.cable != None and port != incoming_port:
-                    port.cable.data = objs.Data.Null
-                    if port.name in self.connections.keys():
-                        portname2 = self.connections[port.name]
-                        port2 = self.ports[portname2]
-                        self.__clear_cables_data(port2.device,port2, stop_signal)
 
     def shutdown_connection(self, name_port: str, time: int):
         self.__update_network_status(time)
 
         if self.__validate_disconnection(name_port):
             port1 = self.ports[name_port]
-            if name_port in self.connections.keys():
-                name_port2 = self.connections[name_port]
-                port2 = self.ports[name_port2]
-                # si por este cable esta pasando informacion actualmente
-                if port1.cable.data != objs.Data.Null:
+            if  port1.next != None:                
+                port2 = port1.next
+                # en caso que desde el puerto 1 se este enviando informacion
+                if port1.write_channel.data != objs.Data.Null:
                     # en caso que la informacion provenga a traves del port1
                     # esta deja de llegar desde el port2 a todas las conexiones que partan de el
-                    port1.cable.data = objs.Data.Null
-                    if port1.cable.transfer_port == port1:                        
-                        self.devices_visited.clear()
-                        self.__clear_cables_data(port2.device,port2)
-                    else:
+                    port1.write_channel.data = objs.Data.Null
+                    port2.device.missing_data(port2)
+                
+                # en caso que desde el puerto 2 se este enviando informacion
+                if port2.write_channel.data != objs.Data.Null:
                     # en caso que la informacion provenga a traves del port2
-                    # esta deja de llegar desde el port1 a todas las conexiones que partan de el    
-                        self.devices_visited.clear()
-                        self.__clear_cables_data(port1.device,port1)
-
-                if isinstance(port1.device,objs.Host) and port1.device.transmitting:
-                    port1.device.transmitting = False
-                    # el host no puede enviar en este momento la sennal pues se esta transmitiendo informacion por el canal o no tiene canal para transmitir la informacion
-                    port1.device.stopped = True
-                    # aumenta la cantidad de intentos fallidos
-                    port1.device.failed_attempts += 1 
-                    # notifica que hubo una colision y la informacion no pudo enviarse
-                    port1.device.log(port1.device.bit_sending, "send", self.time, True)
-                    # el rango se duplica en cada intento fallido
-                    if port1.device.failed_attempts < 16:
-                        nrand = random.randint(1, 2*port1.device.failed_attempts*10)
-                        # dada una colision espero un tiempo cada vez mayor para poder volverla a enviar
-                        port1.device.stopped_time = nrand * self.slot_time
-                    else:
-                        # se cumplio el maximo de intentos fallidos permitidos por lo que se decide perder esa info
-
-                        port1.device.stopped = True
-                        next_bit = port1.device.next_bit()
-                        if next_bit != None:
-                            port1.device.bit_sending =next_bit
-                            port1.device.stopped = True
-                            port1.device.stopped_time = 1
-                            port1.device.failed_attempts = 0
-                        else:
-                            port1.device.stopped = False
+                    # esta deja de llegar desde el port2 a todas las conexiones que partan de el
+                    port2.write_channel.data = objs.Data.Null
+                    port1.device.missing_data(port2)
+                    
+                # como los cables son duplex ambos casos pueden ocurrir a la vez    
+    
+                
 
 
-                # tengo que remover el cable del puerto port1 
-                port1.cable = None        
-                del self.connections[name_port]
-                del self.connections[name_port2]
+                # tengo que remover el cable del puerto port1 pues este quedaria todavia conectado al puerto 2
+                port1.cable = None
+                # al desconectar una de las puntas del cable 1 se perderia la conexion entre estos dos cables        
+                port1.next =  None
+                port2.next =  None
             else:
                 port1.cable = None    
 
@@ -316,9 +225,10 @@ class Device_handler:
             if host.stopped:
                 host.stopped_time -= 1
                 if host.stopped_time == 0:
-                    host.stopped = False
+                    
+                    self.devices_visited.clear()
                     # vuelve a intentar enviar el bit que habia fallado previamente
-                    self.__send_bit(host, host.bit_sending)
+                    host.retry(self.devices_visited, self.time)
                 ischange = True
             # en caso que el host este transmitiendo un informacion
             elif host.transmitting:
@@ -326,23 +236,21 @@ class Device_handler:
                 # compruebo si la informacion vencio el maximo time que puede estar en el canal
                 if host.transmitting_time % self.slot_time == 0:
                     if host.port.cable != None:
-                        host.port.cable.data = objs.Data.Null
+                        host.port.cable.write_channel = objs.Data.Null
                     host.bit_sending = None    
                     # dame el proximo bit a enviar por el host
-                    nex_bit = host.next_bit()
-
+                    nex_bit = host.next_bit()                   
                     
-                    
-                    if host.port.name in self.connections.keys():
-                        portname2 = self.connections[host.port.name]
-                        port2 = self.ports[portname2]
+                    if host.port.next != Null:
+                        nextdevice = host.port.next.device
+                        
                         # limpia el camino para enviar el proximo bit
                         self.devices_visited.clear()
                         self.__clear_cables_data(port2.device,port2)
                     # intenta enviar el proximom bit 
                     if nex_bit != None:
-                       
-                       self.__send_bit(host,nex_bit)
+                       self.devices_visited.clear()
+                       host.send(nex_bit, host.port, self.devices_visited, self.time)
                         
                     else:
                         host.transmitting = False
@@ -352,30 +260,34 @@ class Device_handler:
 
         return ischange                
 
-    
+
     def send_frame(self ,host, destiny_mac:str, data:str time: int):
        if __validate_send_frame(host,destiny_mac,data):
-           data_frame = format(int(destiny_mac, base = 16), '16b') + format(int(host.mac, base = 16), '16b') + format(len(data), '08b') + format(0, '08b') + format(int(data,base = 16), '04b')
-           self.send(host, data_frame, time)
+            data_frame = format(int(destiny_mac, base = 16), '16b') + format(int(host.mac, base = 16), '16b') + format(len(data), '08b') + format(0, '08b') + format(int(data,base = 16), '04b')
+            host = self.ports[origin_pc+'_1'].device
+            host.add_frame(data)
+            # en caso que el host este disponible para enviar pues el mismo puede estar
+            # en medio de una transmision o estar esperando producto de una colision a enviar un dato fallido 
+            if not host.stopped and not host.transmitting:
+                nexbit = host.next_bit()
+                self.devices_visited.clear()
+                host.send(nextbit, host.port, devices_visited, time)
+             
            
-    
     def send(self, origin_pc, data, time):
         # actualiza primero la red por si todavia no ha llegado a time 
         self.__update_network_status(time)
 
         if self.__validate_send(origin_pc):  # El send es valido
             host = self.ports[origin_pc+'_1'].device
-            # en caso que la pc este transmitiendo otra informacion
-            if host.data != "":
-                # agrego esa nueva informacion a una cola de datos sin enviar
-                host.data_pending.put(data)
-            else:
-                host.data = data
+            # agrego el la data la PC
+            host.add_frame(data)
             # en caso que el host este disponible para enviar pues el mismo puede estar
             # en medio de una transmision o estar esperando producto de una colision a enviar un dato fallido 
             if not host.stopped and not host.transmitting:
-                nex_bit = host.next_bit()
+                nexbit = host.next_bit()
                 self.devices_visited.clear()
-                host.send(nex_bit, host.port, devices_visited, time)           
+                host.send(nextbit, host.port, devices_visited, time)
+              
     
    

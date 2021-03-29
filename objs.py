@@ -12,7 +12,7 @@ class Cable:
         # conozco la informacion qu esta pasando por el cable
         self.data = Data.Null  # 0 1 Null son los tres estados en los que puede estar el cable
 
-class CableDuplex:
+class CableDuplex:device.log(data, "send", self.time, True)
     def __init__(self):
         # un cable duplex se representaria como dos cables normales 
         self.cableA = Cable()  
@@ -57,7 +57,7 @@ class Host:
         self.mac = None
         # se escribiran solamente los datos recibidos por esta PC y quien los recibio
         self.file_d =f"./Hosts/{name}_data.txt"
-
+        self.incoming_frame =""
         f = open(self.file, 'w')
         f.close()
 
@@ -69,6 +69,10 @@ class Host:
     def log(self, data, action, time, collison=False):
         terminal = "collision" if collison else "ok"
         message = f"{time} {self.port.name} {action} {data} {terminal}\n"
+        self.__update_file(message)
+    
+    def log_frame(self, source_mac, datahex, time):
+        message = f"{time} {source_mac} {datahex}"
         self.__update_file(message)
 
     def data(self, origin_mac, data_frame, time):
@@ -103,6 +107,12 @@ class Host:
         # alcanzables por el host             
 
 
+    def add_frame(self, frame:str):
+        if self.data != "":
+            # agrego esa nueva informacion a una cola de datos sin enviar
+            self.data_pending.put(frame)
+        else:
+            self.data = frame
 
     def put_data(self, data: int):
         if self.port.cable == None or self.port.cable.write_channel.data != Data.Null:
@@ -145,7 +155,15 @@ class Host:
                 else:
                     self.colision_protocol()        
 
+    def death_short(self, incoming_port = self.port):
+        colision_protocol()
 
+    def missing_data(self,incoming_port):
+        return
+
+    def retry(self, devices_visited, time):
+        self.stopped = False
+        self.send(self.bitsending, self.port, devices_visited, time)
 
 class Hub:
     def __init__(self, name: str, ports_amount: int) -> None:
@@ -174,7 +192,11 @@ class Hub:
         self.__update_file(message)
 
     def put_data(self, data:str, port: Port):
-        port.write_channel.data = data
+        if port.write_channel != Data.Null
+            port.write_channel.data = data
+            return True
+        else:
+            return False    
 
     def receive(self, bit, incoming_port, devices_visited, time):
         self.log(bit, "receive", port, time)
@@ -186,10 +208,26 @@ class Hub:
         devices_visited.append(self.name)
         for _port in self.ports:
             if _port != incoming_port and _port.next != None and _port.next.device.name not in devices_visited:
+                if not self.put_data(bit, _port):
+                    self.device.death_short(incoming_port)
+                    return
                 _port.next.device.receive(bit, _port.next, time)
                 _port.next.device.send(bit, _port.next, devices_visited, time)
 
 
+    def death_short(self, incoming_port):
+        incoming_port.read_channel = Data.Null
+        incoming_port.next.device.death_short(incoming_port.next)
+        for port in [p self.ports if p!= incoming_port]:
+            port.write_channel.data = Data.Null
+            if port.next != None:
+                port.next.device.death_short(port.next)
+    
+    def missing_data(self,incoming_port):
+        for port in [p self.ports if p!= incoming_port]:
+            port.write_channel.data = Data.Null
+            if port.next != None:
+                port.next.device.missing_data(port.next)            
 
 class Buffer:
     def __init__(self):
@@ -204,7 +242,7 @@ class Buffer:
         self.transmitting = False
         self.receiving = False
         self.mac = None
-        self.bit = None
+        self.bit_sending = None
 
     def put_data(self, bit):
         self.incoming_frame += bit       
@@ -302,10 +340,12 @@ class Switch:
 
 
 
-
+    def death_short(self, incoming_port):
+        return
         
         
-                
+    def missing_data(self,incoming_port):
+        return         
 
         
         
