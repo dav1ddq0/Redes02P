@@ -220,7 +220,6 @@ class Device_handler:
     # a los que pueda llegar desde el otra
  
     def __update_devices(self):
-        ischange = False  
         for host in self.hosts:
             # en caso que el host no haya podido enviar una informacion previamente producto de una colision
             # por la forma del carrier sense el va a esperar un tiempo aleatorio  para volver a enviar
@@ -231,7 +230,6 @@ class Device_handler:
                     self.devices_visited.clear()
                     # vuelve a intentar enviar el bit que habia fallado previamente
                     host.retry(self.devices_visited, self.time)
-                ischange = True
             # en caso que el host este transmitiendo un informacion
             elif host.transmitting:
                 host.transmitting_time +=1
@@ -248,7 +246,8 @@ class Device_handler:
                         
                         # limpia el camino para enviar el proximo bit
                         self.devices_visited.clear()
-                        self.__clear_cables_data(port2.device,port2)
+                        host.port.next.device.missing_data(host.port.next, self.devices_visited)
+                        
                     # intenta enviar el proximom bit 
                     if nex_bit != None:
                        self.devices_visited.clear()
@@ -258,9 +257,18 @@ class Device_handler:
                         host.transmitting = False
                         host.transmitting_time = 0    
                 
-                ischange = True   
+                  
 
-        return ischange                
+        for switch in self.switches:
+            for port in switch.ports:
+                portbuff = switch.buffers[port.name]
+                if portbuff.transmitting and iportbuff.transmitting_time % self.time == 0:
+                    self.devices_visited.clear()
+                    port.next.device.missing_data(port.next, self.devices_visited) 
+                    nexbit = portbuff.next_bit()
+                    if 
+                    self.devices_visited.clear()
+                    switch.send()                 
 
 
     def send_frame(self ,host, destiny_mac:str, data:str time: int):
