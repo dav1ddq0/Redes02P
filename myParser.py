@@ -56,7 +56,7 @@ def create_parse(args : list, time: int):
     elif args[1] == "host":
         if len(args) == 3:
             return args[1], [args[2], time]
-    else i args[1] == "switch":
+    elif args[1] == "switch":
         if len(args) == 3:
             return args[1], [args[2], time]        
     

@@ -86,23 +86,23 @@ class Host:
             # aumenta la cantidad de intentos fallidos
             self.failed_attempts += 1 
             # notifica que hubo una colision y la informacion no pudo enviarse
-            self.log(data, "send", self.time, True)
+            self.log(self.data, "send", self.time, True)
             # el rango se duplica en cada intento fallido
             if self.failed_attempts < 16:
-                nrand = random.randint(1, 2*device.failed_attempts*10)
+                nrand = random.randint(1, 2*self.failed_attempts*10)
                 # dada una colision espero un tiempo cada vez mayor para poder volverla a enviar
                 self.stopped_time = nrand * self.slot_time
             else:
                 # se cumplio el maximo de intentos fallidos permitidos por lo que se decide perder esa info                 
-                device.stopped = True
+                self.stopped = True
                 next_bit = self.next_bit()
                 if next_bit != None:
-                    device.bit_sending = next_bit
-                    device.stopped = True
-                    device.stopped_time = 1
-                    device.failed_attempts = 0
+                    self.bit_sending = next_bit
+                    self.stopped = True
+                    self.stopped_time = 1
+                    self.failed_attempts = 0
                 else:
-                    device.stopped = False
+                    self.stopped = False
         # en caso que no haya colision empiezo a regar la informacion  desde el host por toda la red de cables interconectados 
         # alcanzables por el host             
 
@@ -136,34 +136,42 @@ class Host:
         return None
 
     def receive(self, bit, incoming_port, devices_visited, time):
-        self.log(next_bit, "receive", incoming_port, time)
+        self.log(bit, "receive", incoming_port, time)
 
-    def send(self, bit, incoming_port, devices_visited, time):
+    def send(self, data, incoming_port, devices_visited, time):
         if self.data != "":
             # agrego esa nueva informacion a una cola de datos sin enviar
-            self.data_pending.put(data)
+            self.data_pending.put(self.data)
         else:
             self.data = data 
-            if not host.stopped and not host.transmitting:
-                nex_bit = host.next_bit()
-                self.log(next_bit, "send", incoming_port, time)
-                if put_data(next_bit):
+            if not self.stopped and not self.transmitting:
+                nextbit = self.next_bit()
+                self.log(nextbit, "send", incoming_port, time)
+                if put_data(nextbit):
                     self.transmitting = True
                     self.transmitting_time = 0
                     if self.port.next != None:
-                        self.port.next.device.receive(bit, self.port.next, devices_visited, time)
+                        self.port.next.device.receive(nextbit, self.port.next, devices_visited, time)
                 else:
                     self.colision_protocol()        
 
-    def death_short(self, incoming_port = self.port):
-        colision_protocol()
+    def death_short(self, incoming_port):
+        self.colision_protocol()
 
     def missing_data(self,incoming_port):
         return
 
     def retry(self, devices_visited, time):
         self.stopped = False
-        self.send(self.bitsending, self.port, devices_visited, time)
+        nextbit = self.next_bit()
+        if put_data(nextbit):
+            self.transmitting = True
+            self.transmitting_time = 0
+            if self.port.next != None:
+                self.port.next.device.receive(nextbit, self.port.next, devices_visited, time)
+        else:
+            self.colision_protocol() 
+        
 
 class Hub:
     def __init__(self, name: str, ports_amount: int) -> None:
@@ -199,11 +207,11 @@ class Hub:
             return False    
 
     def receive(self, bit, incoming_port, devices_visited, time):
-        self.log(bit, "receive", port, time)
+        self.log(bit, "receive", self.port, time)
         self.send(bit, incoming_port, devices_visited, time)
 
     def send(self, bit, incoming_port, devices_visited, time):
-        self.log(data, "send", incoming_port, time)
+        self.log(bit, "send", incoming_port, time)
         self.put_data(bit, incoming_port)
         devices_visited.append(self.name)
         for _port in self.ports:
@@ -231,9 +239,9 @@ class Hub:
             if port.next != None:
                 port.next.device.missing_data(port.next)            
 
+
 class Buffer:
     def __init__(self):
-        self.port = nameport
         self.incoming_frame_pending = queue.Queue()
         self.sending_frame_pending = queue.Queue()
         # cadena de informacion que el switch ira transmitiendo por ese puerto hacia otro dispositivos
@@ -266,7 +274,7 @@ class Buffer:
         return None
 
 class Switch:
-     def __init__(self, name: str, ports_amount: int) -> None:
+    def __init__(self, name: str, ports_amount: int) -> None:
         self.name = name
         self.connections = [None] * ports_amount
         self.file = f"./Switches/{name}.txt"
@@ -279,7 +287,7 @@ class Switch:
         self.frames = []
         for i in range(ports_amount):
             portname = f"{name}_{i + 1}"
-            buffer[portname] = Buffer()
+            self.buffers[portname] = Buffer()
             port = Port(portname, self)
             self.ports.append(port)
         # make the hub file
@@ -295,8 +303,8 @@ class Switch:
         message = f"{time} {port} {action} {data}\n"
         self.__update_file(message)
 
-     def receive(self, bit, incoming_port, devices_visited, time):
-        self.log(bit, "receive", port,time)
+    def receive(self, bit, incoming_port, devices_visited, time):
+        self.log(bit, "receive", incoming_port,time)
         self.buffers[incoming_port.name].putdata(bit)
         self.check_buffers()
 
@@ -306,31 +314,31 @@ class Switch:
     # comprobar el en cada momento el cambio interno de un switch
     def check_buffers(self):
         for port in self.ports:
-            mybuffer = buffers[port]
+            mybuffer = self.buffers[port]
             incoming_frame = mybuffer.incoming_frame
             ## cumple el formato de una trama 16bit outmac 16 inmac 8 bit len 8bit0 data
             if len(incoming_frame) > 48:
                
                 lendatabin = incoming_frame[32:40]
                 lendata = int(lendata,2)
-                framedata = [48:]
+                framedata = incoming_frame[48:]
                 if len(framedata) == lendata:
                     macbin =  framedata[0:16]
                     machex = '{:X}'.format(int(macbin,2))
                     if machex not in self.map.keys():
                         
-                        for p2 in [p in self.ports if p !=port]:
+                        for p2 in [p for p in self.ports if p !=port]:
                             name = p2.name
-                            if buffer[name].sending_frame != "":
-                                buffer[name].send_frame_pending.put(incoming_frame)
+                            if self.buffers[name].sending_frame != "":
+                                self.buffers[name].send_frame_pending.put(incoming_frame)
                             else:
-                                buffer[name].sending_frame = incoming_frame
+                                self.buffers[name].sending_frame = incoming_frame
                     else:
                         nextport = map[machex].name
-                        if buffer[nextport].sending_frame != "":
-                            buffer[nextport].send_frame_pending.put(incoming_frame)
+                        if self.buffers[nextport].sending_frame != "":
+                            self.buffer[nextport].send_frame_pending.put(incoming_frame)
                         else:
-                            buffer[nextport].sending_frame = incoming_frame
+                            self.buffers[nextport].sending_frame = incoming_frame
                 
                 mybuffer.incoming_frame = ""
 
@@ -338,7 +346,7 @@ class Switch:
     def send(self, bit, incoming_port, devices_visited, time):
         self.log(bit, "send", incoming_port.name, time)
         self.put_data(bit, incoming_port)
-        nexport = incoming_port.next
+        nextport = incoming_port.next
         nextport.device.receive(bit, incoming_port, devices_visited, time)
 
 

@@ -83,6 +83,8 @@ class Device_handler:
         if port not in self.ports.keys():
             print(f"{bcolors.WARNING} invalid mac assign{bcolors.ENDC} PC {bcolors.OKGREEN}{pc} {bcolors.ENDC} {errors[2]}")
             return False
+        
+        return True    
 
 
     def __valid_mac(self,mac) -> bool:
@@ -138,7 +140,9 @@ class Device_handler:
 
 
     def setup_mac(self, host, address, time: int):
+        
         if self.__validate_setup_mac(host,address):
+
             self.ports[f"{host}_1"].device.mac = address
 
    
