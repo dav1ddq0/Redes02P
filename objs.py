@@ -223,7 +223,9 @@ class Hub:
             if port.next != None:
                 port.next.device.death_short(port.next)
     
-    def missing_data(self,incoming_port):
+    def missing_data(self,incoming_port, devices_visited):
+        if self in devices_visited:
+            return 
         for port in [p self.ports if p!= incoming_port]:
             port.write_channel.data = Data.Null
             if port.next != None:
@@ -233,7 +235,7 @@ class Buffer:
     def __init__(self):
         self.port = nameport
         self.incoming_frame_pending = queue.Queue()
-        self.send_frame_pending = queue.Queue()
+        self.sending_frame_pending = queue.Queue()
         # cadena de informacion que el switch ira transmitiendo por ese puerto hacia otro dispositivos
         self.sending_frame = ""
         # cadena de informacion que va recibiendo el switch bit a bit por ese puerto hasta que pueda completar el formato de una trama y decidir para donde
@@ -251,14 +253,14 @@ class Buffer:
 
 
     def next_bit(self):
-        n = len(self.frame)
+        n = len(self.sending_frame)
         if n > 0:
-            next = self.frame[0]
-            self.datself.incoming_frame_pending = queue.Queue()a = self.data[1:]
+            next = self.sending_frame[0]
+            self.sending_frame = self.sending_frame[1:]
             return next
 
-        if self.data_pending.qsize() > 0:
-            self.data = self.data_pending.get()
+        if self.sending_frame_pending.qsize() > 0:
+            self.sending_frame = self.sending_frame_pending.get()
             return self.next_bit()    
        
         return None

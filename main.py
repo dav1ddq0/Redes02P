@@ -12,17 +12,19 @@ caller ={
         "switch" : lambda args: handler.create_switch(args[0], args[1],args[2]),
         "connect": lambda args : handler.setup_connection(args[0],args[1], args[2]),
         "send": lambda args : handler.send(args[0], args[1], args[2]),
-        "disconnect": lambda args :  handler.shutdown_connection(args[0], args[1])
+        "disconnect": lambda args :  handler.shutdown_connection(args[0], args[1]),
+        "mac" : lambda args : handler.setup_mac(args[0], args[1], args[2]),
+        "send_frame" : lambda args : handler.send_frame(args[0], args[1],args[3], args[4])
         }
 
 # main :D
 def main():
     
-    parser = argparse.ArgumentParser(description="Instrucciones del script")
-    parser.add_argument('-f', dest='textfile', default=True)
-    args = parser.parse_args()
-    filename = args.textfile
-
+    # parser = argparse.ArgumentParser(description="Instrucciones del script")
+    # parser.add_argument('-f', dest='textfile', default=True)
+    # args = parser.parse_args()
+    # filename = args.textfile
+    filename = input()
     f = open(filename, 'r')
     # has un recorrido por cada linea del file.txt
     for line in f.readlines():

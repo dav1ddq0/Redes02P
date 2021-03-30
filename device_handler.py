@@ -1,4 +1,4 @@
-from os import name, stat
+
 import objs
 import random
 import string
@@ -91,7 +91,7 @@ class Device_handler:
     def __validate_send_frame(self,host, destiny_mac, data):
         if not any(host == h for h in self.hosts):
             return False
-        if not __valid_mac(destiny_mac):
+        if not self.__valid_mac(destiny_mac):
             return False
         if not all(c in string.hexdigits for c in data):
             return False
@@ -103,7 +103,7 @@ class Device_handler:
         # actividad de los host      
         while any(host.transmitting or host.stopped for host in self.hosts) or any(switch.check_transmitting() for switch in self.switches):
             self.time += 1
-            self.__update_devices():
+            self.__update_devices()
 
 
     def __update_network_status(self, time: int):
@@ -138,8 +138,8 @@ class Device_handler:
 
 
     def setup_mac(self, host, address, time: int):
-        if __validate_setup_mac(host,address):
-            ports[f"{host}_1"].device.mac = address
+        if self.__validate_setup_mac(host,address):
+            self.ports[f"{host}_1"].device.mac = address
 
    
 
@@ -171,10 +171,16 @@ class Device_handler:
                 # en caso que conecte un hub a otro hub que estan retransmitiendo la informacion desde distintos host
                 # se manda un sennal para tumbar la transmision en ambos lados y los host volveraran a intentar 
                 # transmitir la informacion luego de un tiempo aleatorio en cada uno 
+                if isinstance(device1,objs.Switch) and isinstance(device2,objs.Host):
+                    device1.map[device2.mac] = port1 
+
                 if isinstance(device1, objs.Host) and device1.bit_sending:
                     port1.write_channel = device1.bit_sending
                     self.devices_visited.clear()
                     device2.receive(device1.bit_sending, port2, self.devices_visited, time)
+                
+                if isinstance(device2,objs.Switch) and isinstance(device1,objs.Host):
+                    device2.map[device1.mac] = port2
 
                 if isinstance(device2, objs.Host) and device2.bit_sending:
                     port2.write_channel = device2.bit_sending
@@ -241,7 +247,7 @@ class Device_handler:
                     # dame el proximo bit a enviar por el host
                     nex_bit = host.next_bit()                   
                     
-                    if host.port.next != Null:
+                    if host.port.next != None:
                         nextdevice = host.port.next.device
                         
                         # limpia el camino para enviar el proximo bit
@@ -262,26 +268,30 @@ class Device_handler:
         for switch in self.switches:
             for port in switch.ports:
                 portbuff = switch.buffers[port.name]
-                if portbuff.transmitting and iportbuff.transmitting_time % self.time == 0:
+                if portbuff.transmitting and portbuff.transmitting_time % self.slot_time == 0:
                     self.devices_visited.clear()
                     port.next.device.missing_data(port.next, self.devices_visited) 
-                    nexbit = portbuff.next_bit()
-                    if 
-                    self.devices_visited.clear()
-                    switch.send()                 
+                    nextbit = portbuff.next_bit()
+                    if nextbit != None:
+
+                        self.devices_visited.clear()
+                        switch.send(nextbit, port, self.devices_visited, self.time)
+                    else:
+                        portbuff.transmitting = False
+                        portbuff.bit_sending = None                     
 
 
-    def send_frame(self ,host, destiny_mac:str, data:str time: int):
-       if __validate_send_frame(host,destiny_mac,data):
+    def send_frame(self ,host, destiny_mac:str, data:str, time: int):
+       if self.__validate_send_frame(host,destiny_mac,data):
             data_frame = format(int(destiny_mac, base = 16), '16b') + format(int(host.mac, base = 16), '16b') + format(len(data), '08b') + format(0, '08b') + format(int(data,base = 16), '04b')
-            host = self.ports[origin_pc+'_1'].device
+            host = self.ports[host+'_1'].device
             host.add_frame(data)
             # en caso que el host este disponible para enviar pues el mismo puede estar
             # en medio de una transmision o estar esperando producto de una colision a enviar un dato fallido 
             if not host.stopped and not host.transmitting:
-                nexbit = host.next_bit()
+                nextbit = host.next_bit()
                 self.devices_visited.clear()
-                host.send(nextbit, host.port, devices_visited, time)
+                host.send(nextbit, host.port, self.devices_visited, time)
              
            
     def send(self, origin_pc, data, time):
@@ -295,9 +305,9 @@ class Device_handler:
             # en caso que el host este disponible para enviar pues el mismo puede estar
             # en medio de una transmision o estar esperando producto de una colision a enviar un dato fallido 
             if not host.stopped and not host.transmitting:
-                nexbit = host.next_bit()
+                nextbit = host.next_bit()
                 self.devices_visited.clear()
-                host.send(nextbit, host.port, devices_visited, time)
+                host.send(nextbit, host.port, self.devices_visited, time)
               
     
    

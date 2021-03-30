@@ -2,7 +2,9 @@ caller ={
         "create" : lambda args, time : create_parse(args, time) ,
         "connect" : lambda args, time : connect_parse(args, time),
         "send" : lambda args, time : send_parse(args, time),
-        "disconnect" : lambda args, time :  disconnect_parse(args, time)
+        "disconnect" : lambda args, time :  disconnect_parse(args, time),
+        "send_frame" : lambda args, time : send_frame_parse(args, time),
+        "mac" : lambda args, time : mac_parse(args, time)
         }
 
 
@@ -61,6 +63,17 @@ def create_parse(args : list, time: int):
     else : print("Invalid amount of arguments")
 
 
+def mac_parse(args: list, time:int):
+    if len(args) == 3:
+        return args[0], [args[1], args[2], time]
+    else:
+        print("Invalid amount of arguments")
+
+def send_frame_parse(args: list, time: int):
+    if len(args) == 4:
+        return args[0], [args[1], args[2], arg[3], time]
+    else:
+        print("Invalid amount of arguments")          
 
 def connect_parse(args: list, time: int):
 
