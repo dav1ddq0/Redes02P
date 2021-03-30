@@ -12,8 +12,8 @@ class Cable:
         # conozco la informacion qu esta pasando por el cable
         self.data = Data.Null  # 0 1 Null son los tres estados en los que puede estar el cable
 
-class CableDuplex:device.log(data, "send", self.time, True)
-    def __init__(self):
+class CableDuplex:
+    def __init__(self) -> None:
         # un cable duplex se representaria como dos cables normales 
         self.cableA = Cable()  
         self.cableB = Cable() 
@@ -192,7 +192,7 @@ class Hub:
         self.__update_file(message)
 
     def put_data(self, data:str, port: Port):
-        if port.write_channel != Data.Null
+        if port.write_channel.data != Data.Null:
             port.write_channel.data = data
             return True
         else:
@@ -218,7 +218,7 @@ class Hub:
     def death_short(self, incoming_port):
         incoming_port.read_channel = Data.Null
         incoming_port.next.device.death_short(incoming_port.next)
-        for port in [p self.ports if p!= incoming_port]:
+        for port in [p for p in self.ports if p!= incoming_port]:
             port.write_channel.data = Data.Null
             if port.next != None:
                 port.next.device.death_short(port.next)
@@ -226,7 +226,7 @@ class Hub:
     def missing_data(self,incoming_port, devices_visited):
         if self in devices_visited:
             return 
-        for port in [p self.ports if p!= incoming_port]:
+        for port in [p for p in self.ports if p!= incoming_port]:
             port.write_channel.data = Data.Null
             if port.next != None:
                 port.next.device.missing_data(port.next)            

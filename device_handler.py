@@ -1,7 +1,7 @@
 
 import objs
-import random
 import string
+
 
 errors = {1 : "do not has a cable connected", 2: "does not exist", 3: "is not free", 4: "the device must be a host",
           5: "host busy (collision)", 6: "has a cable connected, but its other endpoint is not connected to another device" }
