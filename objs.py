@@ -262,10 +262,15 @@ class Buffer:
         self.mac = None
         self.bit_sending = None
         self.transmittig_time = 0
+        self.failed_attempts = 0
+        self.stopped = False
+        self.stopped_time = 0
 
     def put_data(self, bit):
         self.incoming_frame += bit       
             
+
+    
 
 
     def next_bit(self):
@@ -319,6 +324,34 @@ class Switch:
     def put_data(self, data:str, port: Port):
         port.write_channel.data = data
 
+    def colision_protocol(self, switch_port):
+        pbuffer = self.buffers[switch_port.name]
+        pbuffer.transmitting = False
+        # el host no puede enviar en este momento la sennal pues se esta transmitiendo informacion por el canal o no tiene canal para transmitir la informacion
+        pbuffer.stopped = True
+        # aumenta la cantidad de intentos fallidos
+        pbuffer.failed_attempts += 1 
+        # notifica que hubo una colision y la informacion no pudo enviarse
+        self.log(pbuffer.data, "send", switch_port.name, time, True)
+        # el rango se duplica en cada intento fallido
+        if pbuffer.failed_attempts < 16:
+            nrand = random.randint(1, 2*self.failed_attempts*10)
+            # dada una colision espero un tiempo cada vez mayor para poder volverla a enviar
+            pbuffer.stopped_time = nrand * self.slot_time
+        else:
+            # se cumplio el maximo de intentos fallidos permitidos por lo que se decide perder esa info                 
+            pbuffer.stopped = True
+            next_bit = self.next_bit()
+            if next_bit != None:
+                pbuffer.bit_sending = next_bit
+                pbuffer.stopped = True
+                pbuffer.stopped_time = 1
+                pbuffer.failed_attempts = 0
+            else:
+                pbuffer.stopped = False
+
+    
+
     # comprobar el en cada momento el cambio interno de un switch
     def check_buffers(self):
         for port in self.ports:
@@ -360,6 +393,10 @@ class Switch:
 
 
     def death_short(self, incoming_port):
+        portbuff = self.buffers[incoming_port.name]
+        if portbuff.transmitting:
+            self.colision_protocol(incoming_port)
+
         return
         
         
