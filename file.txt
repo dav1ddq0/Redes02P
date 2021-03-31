@@ -3,4 +3,4 @@
 6 create host pc2
 6 mac pc2 8BA4
 6 connect pc1_1 pc2_1
-7 send_frame pc1 8BA4 A6F43400
+7 send_frame pc1 8BA4 4

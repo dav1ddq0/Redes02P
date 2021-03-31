@@ -288,7 +288,7 @@ class Device_handler:
     def send_frame(self ,origin_pc, destiny_mac:str, data:str, time: int):
        if self.__validate_send_frame(origin_pc, destiny_mac, data):
             host = self.ports[f'{origin_pc}_1'].device
-            data_frame = format(int(destiny_mac, base = 16), '16b') + format(int(host.mac, base=16), '16b') + format(len(data), '08b') + format(0, '08b') + format(int(data, base=16), '04b')
+            data_frame = format(int(destiny_mac, base = 16), '16b') + format(int(host.mac, base=16), '16b') + format(len(data), '08b') + format(0, '08b') + format(int(data, base=16), '08b')
 
             host.add_frame(data_frame)
             # en caso que el host este disponible para enviar pues el mismo puede estar

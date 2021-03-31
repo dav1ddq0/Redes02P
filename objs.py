@@ -66,19 +66,19 @@ class Host:
         f.close()
         
 
-    def __update_file(self, message):
-        f = open(self.file, 'a')
+    def __update_file(self, message, file):
+        f = open(file, 'a')
         f.write(message)
         f.close()
 
     def log(self, data, action, time, collison=False):
         terminal = "collision" if collison else "ok"
         message = f"{time} {self.port.name} {action} {data} {terminal}\n"
-        self.__update_file(message)
+        self.__update_file(message, self.file)
     
     def log_frame(self, source_mac, datahex, time):
         message = f"{time} {source_mac} {datahex}"
-        self.__update_file(message)
+        self.__update_file(message, self.file_d)
 
     def data(self, origin_mac, data_frame, time):
         message = f"{time} {origin_mac} {data_frame}"
@@ -145,10 +145,11 @@ class Host:
         self.rframe +=bit
         if len(self.rframe) > 48:
             #obtengo la mac de la pc que mando el frame origen
-            origin_mac = '{:X}'.format(int(self.rframe[15:31],2))
+            origin_mac = '{:X}'.format(int(self.rframe[16:32], 2))
             #obtengo la cantidad de bits que debe de tener la data del frame            
-            nsizebits = int(self.rframe[31:39],2) * 8
-            data = self.rframe[47:]
+            nsizebits = int(self.rframe[32:40], 2) * 8
+            garbage = self.rframe[40:48]
+            data = self.rframe[48:]
             # la trama que llego a la pc es valida
             if len(data) == nsizebits:
                 #obtengo en hexadecimal la data 
