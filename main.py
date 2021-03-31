@@ -14,7 +14,7 @@ caller ={
         "send": lambda args : handler.send(args[0], args[1], args[2]),
         "disconnect": lambda args :  handler.shutdown_connection(args[0], args[1]),
         "mac" : lambda args : handler.setup_mac(args[0], args[1], args[2]),
-        "send_frame" : lambda args : handler.send_frame(args[0], args[1],args[3], args[4])
+        "send_frame" : lambda args : handler.send_frame(args[0], args[1],args[2], args[3])
         }
 
 # main :D

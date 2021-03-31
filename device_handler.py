@@ -24,7 +24,6 @@ class Device_handler:
     def __init__(self, slot_time: int) -> None:
         self.hosts = []
         self.switches = []
-        self.connections = {}
         self.time = 0
         self.slot_time = slot_time
         # diccionario que va a guardar todos los puertos de todos los devices para poder acceder de manera rapida a los mismo en 
@@ -87,11 +86,11 @@ class Device_handler:
         return True    
 
 
-    def __valid_mac(self,mac) -> bool:
-        return any(host.mac == mac for host in self.hosts)
+    def __valid_mac(self,mac) -> bool:                                #broadcast
+        return any(host.mac == mac for host in self.hosts)  or mac == 'FFFF'
 
     def __validate_send_frame(self,host, destiny_mac, data):
-        if not any(host == h for h in self.hosts):
+        if not any(host == h.name for h in self.hosts):
             return False
         if not self.__valid_mac(destiny_mac):
             return False
@@ -204,7 +203,8 @@ class Device_handler:
                     # en caso que la informacion provenga a traves del port1
                     # esta deja de llegar desde el port2 a todas las conexiones que partan de el
                     port1.write_channel.data = objs.Data.Null
-                    port2.device.missing_data(port2)
+                    self.devices_visited.clear()
+                    port2.device.missing_data(port2, self.devices_visited)
                 
                 # en caso que desde el puerto 2 se este enviando informacion
                 if port2.write_channel.data != objs.Data.Null:
@@ -242,7 +242,7 @@ class Device_handler:
                     host.retry(self.devices_visited, self.time)
             # en caso que el host este transmitiendo un informacion
             elif host.transmitting:
-                host.transmitting_time +=1
+                host.transmitting_time += 1
                 # compruebo si la informacion vencio el maximo time que puede estar en el canal
                 if host.transmitting_time % self.slot_time == 0:
                     if host.port.cable != None:
@@ -285,18 +285,22 @@ class Device_handler:
                         portbuff.bit_sending = None                     
 
 
-    def send_frame(self ,host, destiny_mac:str, data:str, time: int):
-       if self.__validate_send_frame(host,destiny_mac,data):
-            data_frame = format(int(destiny_mac, base = 16), '16b') + format(int(host.mac, base = 16), '16b') + format(len(data), '08b') + format(0, '08b') + format(int(data,base = 16), '04b')
-            host = self.ports[host+'_1'].device
-            host.add_frame(data)
+    def send_frame(self ,origin_pc, destiny_mac:str, data:str, time: int):
+       if self.__validate_send_frame(origin_pc, destiny_mac, data):
+            host = self.ports[f'{origin_pc}_1'].device
+            data_frame = format(int(destiny_mac, base = 16), '16b') + format(int(host.mac, base=16), '16b') + format(len(data), '08b') + format(0, '08b') + format(int(data, base=16), '04b')
+
+            host.add_frame(data_frame)
             # en caso que el host este disponible para enviar pues el mismo puede estar
             # en medio de una transmision o estar esperando producto de una colision a enviar un dato fallido 
             if not host.stopped and not host.transmitting:
                 nextbit = host.next_bit()
-                self.devices_visited.clear()
-                host.send(nextbit, host.port, self.devices_visited, time)
-             
+                if host.put_data(nextbit):
+                    self.devices_visited.clear()
+                    host.send(nextbit, host.port, self.devices_visited, time)
+                else:
+                    host.colision_protocol(time)
+
            
     def send(self, origin_pc, data, time):
         # actualiza primero la red por si todavia no ha llegado a time 

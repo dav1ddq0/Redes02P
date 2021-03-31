@@ -51,15 +51,20 @@ class Host:
         self.stopped = False
         self.stopped_time = 0
         self.failed_attempts = 0
-        self.frame =""
+        # bits que han sido recibidos por el host y que podrian ser una trama 
+        self.rframe =""
         # me permite conecer  si una PC esta transmitiendo o no en un momento determinado informacion
         # direccion mac que tendria la PC
         self.mac = None
         # se escribiran solamente los datos recibidos por esta PC y quien los recibio
         self.file_d =f"./Hosts/{name}_data.txt"
         self.incoming_frame =""
+        self.slot_time = 3
         f = open(self.file, 'w')
         f.close()
+        f = open(self.file_d, 'w')
+        f.close()
+        
 
     def __update_file(self, message):
         f = open(self.file, 'a')
@@ -79,14 +84,14 @@ class Host:
         message = f"{time} {origin_mac} {data_frame}"
         self.__update_file(message)
 
-    def colision_protocol(self):
+    def colision_protocol(self, time):
             self.transmitting = False
             # el host no puede enviar en este momento la sennal pues se esta transmitiendo informacion por el canal o no tiene canal para transmitir la informacion
             self.stopped = True
             # aumenta la cantidad de intentos fallidos
             self.failed_attempts += 1 
             # notifica que hubo una colision y la informacion no pudo enviarse
-            self.log(self.data, "send", self.time, True)
+            self.log(self.data, "send", time, True)
             # el rango se duplica en cada intento fallido
             if self.failed_attempts < 16:
                 nrand = random.randint(1, 2*self.failed_attempts*10)
@@ -115,7 +120,7 @@ class Host:
             self.data = frame
 
     def put_data(self, data: int):
-        if self.port.cable == None or self.port.cable.write_channel.data != Data.Null:
+        if self.port.cable == None or self.port.write_channel.data != Data.Null:
             return False
         else:
             self.port.write_channel.data = data
@@ -136,41 +141,43 @@ class Host:
         return None
 
     def receive(self, bit, incoming_port, devices_visited, time):
-        self.log(bit, "receive", incoming_port, time)
+        self.log(bit, "receive", time)
+        self.rframe +=bit
+        if len(self.rframe) > 48:
+            #obtengo la mac de la pc que mando el frame origen
+            origin_mac = '{:X}'.format(int(self.rframe[15:31],2))
+            #obtengo la cantidad de bits que debe de tener la data del frame            
+            nsizebits = int(self.rframe[31:39],2) * 8
+            data = self.rframe[47:]
+            # la trama que llego a la pc es valida
+            if len(data) == nsizebits:
+                #obtengo en hexadecimal la data 
+                datahex = '{:X}'.format(int(data,2))
+                # guardo en el file _data.txt la trama que recibio la pc
+                self.log_frame(origin_mac, datahex, time)
 
+
+
+    
+    
     def send(self, data, incoming_port, devices_visited, time):
-        if self.data != "":
-            # agrego esa nueva informacion a una cola de datos sin enviar
-            self.data_pending.put(self.data)
-        else:
-            self.data = data 
-            if not self.stopped and not self.transmitting:
-                nextbit = self.next_bit()
-                self.log(nextbit, "send", incoming_port, time)
-                if put_data(nextbit):
-                    self.transmitting = True
-                    self.transmitting_time = 0
-                    if self.port.next != None:
-                        self.port.next.device.receive(nextbit, self.port.next, devices_visited, time)
-                else:
-                    self.colision_protocol()        
+                    
+        self.transmitting = True
+        self.log(data, "send", time)
+        self.transmitting_time = 0
+        if self.port.next != None:
+            self.port.next.device.receive(data, self.port.next, devices_visited, time)
+                
 
     def death_short(self, incoming_port):
         self.colision_protocol()
 
-    def missing_data(self,incoming_port):
+    def missing_data(self,incoming_port, devices_visited):
         return
 
     def retry(self, devices_visited, time):
         self.stopped = False
-        nextbit = self.next_bit()
-        if put_data(nextbit):
-            self.transmitting = True
-            self.transmitting_time = 0
-            if self.port.next != None:
-                self.port.next.device.receive(nextbit, self.port.next, devices_visited, time)
-        else:
-            self.colision_protocol() 
+        self.send(self.bit_sending,self.port, devices_visited, time)
         
 
 class Hub:
@@ -319,9 +326,9 @@ class Switch:
             ## cumple el formato de una trama 16bit outmac 16 inmac 8 bit len 8bit0 data
             if len(incoming_frame) > 48:
                
-                lendatabin = incoming_frame[32:40]
+                lendatabin = incoming_frame[31:39]
                 lendata = int(lendata,2)
-                framedata = incoming_frame[48:]
+                framedata = incoming_frame[47:]
                 if len(framedata) == lendata:
                     macbin =  framedata[0:16]
                     machex = '{:X}'.format(int(macbin,2))

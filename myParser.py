@@ -71,7 +71,7 @@ def mac_parse(args: list, time:int):
 
 def send_frame_parse(args: list, time: int):
     if len(args) == 4:
-        return args[0], [args[1], args[2], arg[3], time]
+        return args[0], [args[1], args[2], args[3], time]
     else:
         print("Invalid amount of arguments")          
 
