@@ -170,15 +170,18 @@ class Host:
             self.port.next.device.receive(data, self.port.next, devices_visited, time)
                 
 
-    def death_short(self, incoming_port):
-        self.colision_protocol()
+    def death_short(self, incoming_port, time):
+        self.colision_protocol(time)
 
     def missing_data(self,incoming_port, devices_visited):
         return
 
-    def retry(self, devices_visited, time):
+    def init_transmision(self, devices_visited, bit,time):
         self.stopped = False
-        self.send(self.bit_sending,self.port, devices_visited, time)
+        if(self.put_data(bit):
+            self.send(bit,self.port, devices_visited, time)
+        else:
+            self.colision_protocol(time)    
         
 
 class Hub:

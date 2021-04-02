@@ -239,7 +239,7 @@ class Device_handler:
                 if host.stopped_time == 0:
                     self.devices_visited.clear()
                     # vuelve a intentar enviar el bit que habia fallado previamente
-                    host.retry(self.devices_visited, self.time)
+                    host.init_transmition(self.devices_visited, host.bit_sending, self.time)
             # en caso que el host este transmitiendo un informacion
             elif host.transmitting:
                 host.transmitting_time += 1
@@ -260,8 +260,10 @@ class Device_handler:
                         
                     # intenta enviar el proximom bit 
                     if nex_bit != None:
+                        
                        self.devices_visited.clear()
-                       host.send(nex_bit, host.port, self.devices_visited, self.time)
+                       host.init_transmition(nex_bit,  self.devices_visited, next_bit, self.time)
+                       
                         
                     else:
                         host.transmitting = False
@@ -314,8 +316,11 @@ class Device_handler:
             # en medio de una transmision o estar esperando producto de una colision a enviar un dato fallido 
             if not host.stopped and not host.transmitting:
                 nextbit = host.next_bit()
-                self.devices_visited.clear()
-                host.send(nextbit, host.port, self.devices_visited, time)
+                if host.put_data(nextbit):
+                    self.devices_visited.clear()
+                    host.send(nextbit, host.port, self.devices_visited, time)
+                else:
+                    host.colision_protocol(time)    
               
     
    
