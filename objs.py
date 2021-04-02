@@ -178,7 +178,7 @@ class Host:
 
     def init_transmision(self, devices_visited, bit,time):
         self.stopped = False
-        if(self.put_data(bit):
+        if self.put_data(bit):
             self.send(bit,self.port, devices_visited, time)
         else:
             self.colision_protocol(time)    
@@ -292,13 +292,12 @@ class Buffer:
 class Switch:
     def __init__(self, name: str, ports_amount: int) -> None:
         self.name = name
-        self.connections = [None] * ports_amount
         self.file = f"./Switches/{name}.txt"
         self.ports = []  # instance a list of ports
         # con esto se si el hub esta retrasmitiendo la informacion proveniente de un host que esta enviando info y que informacion
         
         # diccionario de la forma key = mac value = port of device mac
-        self.map={}
+        self.map = {}
         self.buffers = {}
         self.frames = []
         for i in range(ports_amount):

@@ -130,7 +130,7 @@ class Device_handler:
         for port in newhub.ports:
             self.ports[port.name] = port
     
-    def create_switch(self,name: str,ports, time: int):
+    def create_switch(self,name: str, ports: int, time: int):
         self.__update_network_status(time)
         newswitch = objs.Switch(name, ports)
         self.switches.append(newswitch)
@@ -262,7 +262,7 @@ class Device_handler:
                     if nex_bit != None:
                         
                        self.devices_visited.clear()
-                       host.init_transmition(nex_bit,  self.devices_visited, next_bit, self.time)
+                       host.init_transmition(self.devices_visited, nex_bit,  self.time)
                        
                         
                     else:
@@ -299,7 +299,7 @@ class Device_handler:
                 nextbit = host.next_bit()
                 if host.put_data(nextbit):
                     self.devices_visited.clear()
-                    host.send(nextbit, host.port, self.devices_visited, time)
+                    host.init_transmition(self.devices_visited, nextbit, time)
                 else:
                     host.colision_protocol(time)
 
@@ -318,9 +318,6 @@ class Device_handler:
                 nextbit = host.next_bit()
                 if host.put_data(nextbit):
                     self.devices_visited.clear()
-                    host.send(nextbit, host.port, self.devices_visited, time)
+                    host.init_transmition(self.devices_visited, nextbit, time)
                 else:
-                    host.colision_protocol(time)    
-              
-    
-   
+                    host.colision_protocol(time)

@@ -57,8 +57,15 @@ def create_parse(args : list, time: int):
         if len(args) == 3:
             return args[1], [args[2], time]
     elif args[1] == "switch":
-        if len(args) == 3:
-            return args[1], [args[2], time]        
+        ports_amount = 0
+        try:
+            ports_amount = int(args[3])
+        except ValueError:
+            print("Invalid parameter")
+        if len(args) == 4:
+            return args[1], [args[2], ports_amount, time]
+        else:
+            print("Invalid amount of arguments")
     
     else : print("Invalid amount of arguments")
 
