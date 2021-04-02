@@ -309,6 +309,7 @@ class Switch:
         # make the hub file
         f = open(self.file, 'w')
         f.close()
+        self.slot_time = 3
 
     def __update_file(self, message: str) -> None:
         f = open(self.file, 'a')
@@ -325,9 +326,12 @@ class Switch:
         self.check_buffers()
 
     def put_data(self, data:str, port: Port):
-        port.write_channel.data = data
+        if port.cable == None or port.write_channel.data != Data.Null or port.next == None:
+            return False
+        else:
+            port.write_channel.data = data
 
-    def colision_protocol(self, switch_port):
+    def colision_protocol(self, switch_port, time):
         pbuffer = self.buffers[switch_port.name]
         pbuffer.transmitting = False
         # el host no puede enviar en este momento la sennal pues se esta transmitiendo informacion por el canal o no tiene canal para transmitir la informacion
@@ -389,16 +393,18 @@ class Switch:
                
     def send(self, bit, incoming_port, devices_visited, time):
         self.log(bit, "send", incoming_port.name, time)
-        self.put_data(bit, incoming_port)
-        nextport = incoming_port.next
-        nextport.device.receive(bit, incoming_port, devices_visited, time)
+        if self.put_data(bit, incoming_port):
+            nextport = incoming_port.next
+            nextport.device.receive(bit, incoming_port, devices_visited, time)
+        else:
+            self.colision_protocol(incoming_port, time)    
 
 
 
-    def death_short(self, incoming_port):
+    def death_short(self, incoming_port, time):
         portbuff = self.buffers[incoming_port.name]
         if portbuff.transmitting:
-            self.colision_protocol(incoming_port)
+            self.colision_protocol(incoming_port, time)
 
         return
         
