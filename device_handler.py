@@ -179,6 +179,11 @@ class Device_handler:
                 # en caso que conecte un hub a otro hub que estan retransmitiendo la informacion desde distintos host
                 # se manda un sennal para tumbar la transmision en ambos lados y los host volveraran a intentar 
                 # transmitir la informacion luego de un tiempo aleatorio en cada uno 
+                
+                if isinstance(device1, objs.Hub) and isinstance(device2, objs.Hub):
+                    device1.death_short(port1,time)
+                    device2.death_short(port2,time)
+
                 if isinstance(device1,objs.Switch) and isinstance(device2,objs.Host):
                     device1.map[device2.mac] = port1 
 

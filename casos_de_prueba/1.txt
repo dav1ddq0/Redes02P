@@ -2,7 +2,6 @@
 4 mac pc1 A4B5
 6 create host pc2
 6 mac pc2 8BA4
-8 crate pc
 7 send_frame pc1 8BA4 4
 12 connect pc1_1 pc2_1
 8 send_frame pc2 A4B5 A

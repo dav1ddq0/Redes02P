@@ -225,6 +225,7 @@ class Hub:
 
     def receive(self, bit, incoming_port, devices_visited, time):
         self.log(bit, "receive", self.port, time)
+        self.bit_sending = bit
         self.send(bit, incoming_port, devices_visited, time)
 
     def send(self, bit, incoming_port, devices_visited, time):
@@ -254,6 +255,7 @@ class Hub:
                 port.next.device.death_short(port.next)
     
     def missing_data(self,incoming_port, devices_visited):
+        self.bit_sending = None
         if self in devices_visited:
             return
         else:
