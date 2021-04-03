@@ -183,6 +183,7 @@ class Host:
     def init_transmission(self, devices_visited, bit,time):
         self.stopped = False
         self.transmitting = True
+        self.bit_sending = bit
         if self.put_data(bit):
             self.send(bit,self.port, devices_visited, time)
         else:
@@ -451,5 +452,3 @@ class Switch:
     def check_transmitting(self):
         return any(buffer.transmitting for buffer in self.buffers.values())
         
-        
-    
