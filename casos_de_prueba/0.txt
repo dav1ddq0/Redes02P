@@ -1,0 +1,8 @@
+5 create host pc1
+4 mac pc1 A4B5
+6 create host pc2
+6 mac pc2 8BA4
+7 create switch s 5
+8 connect pc1_1 s_1 
+9 connect pc2_1 s_2
+7 send_frame pc1 8BA4 4

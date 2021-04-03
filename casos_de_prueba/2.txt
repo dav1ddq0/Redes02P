@@ -1,10 +1,7 @@
 5 create host pc1
+4 mac pc1 A4B5
 6 create host pc2
-6 create hub hub1 3
-6 connect hub1_1 pc1_1
-7 connect hub1_2 pc2_1
-7 send pc1 001
-10 send pc2 11
-10 disconnect pc2_1
-11 create host pc3
-12 connect hub1_3 pc3_1
+6 mac pc2 8BA4
+8 connect pc1_1 pc2_1
+7 send_frame pc1 8BA4 4
+8 send_frame pc2 A4B5 A
