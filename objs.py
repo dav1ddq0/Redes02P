@@ -91,7 +91,7 @@ class Host:
             # aumenta la cantidad de intentos fallidos
             self.failed_attempts += 1 
             # notifica que hubo una colision y la informacion no pudo enviarse
-            self.log(self.data, "send", time, True)
+            self.log(self.bit_sending, "send", time, True)
             # el rango se duplica en cada intento fallido
             if self.failed_attempts < 16:
                 nrand = random.randint(1, 2*self.failed_attempts*10)
@@ -162,7 +162,11 @@ class Host:
     
     
     def send(self, data, incoming_port, devices_visited, time):
-                    
+        if self in devices_visited:
+            return
+        else:
+            devices_visited.append(self)
+
         self.transmitting = True
         self.log(data, "send", time)
         self.transmitting_time = 0
@@ -176,8 +180,9 @@ class Host:
     def missing_data(self,incoming_port, devices_visited):
         return
 
-    def init_transmision(self, devices_visited, bit,time):
+    def init_transmission(self, devices_visited, bit,time):
         self.stopped = False
+        self.transmitting = True
         if self.put_data(bit):
             self.send(bit,self.port, devices_visited, time)
         else:
@@ -222,6 +227,11 @@ class Hub:
         self.send(bit, incoming_port, devices_visited, time)
 
     def send(self, bit, incoming_port, devices_visited, time):
+        if self in devices_visited:
+            return
+        else:
+            devices_visited.append(self)
+        
         self.log(bit, "send", incoming_port, time)
         self.put_data(bit, incoming_port)
         devices_visited.append(self.name)
@@ -244,7 +254,10 @@ class Hub:
     
     def missing_data(self,incoming_port, devices_visited):
         if self in devices_visited:
-            return 
+            return
+        else:
+            devices_visited.append(self)
+        
         for port in [p for p in self.ports if p!= incoming_port]:
             port.write_channel.data = Data.Null
             if port.next != None:
@@ -315,20 +328,24 @@ class Switch:
         f.write(message)
         f.close()
 
-    def log(self, data, action, port, time) -> None:
-        message = f"{time} {port} {action} {data}\n"
+    def log(self, data, action, port, time, colision = False) -> None:
+        if colision:
+            message = f"{time} {port} {action} {data} colision\n"
+        else:
+            message = f"{time} {port} {action} {data}\n"
         self.__update_file(message)
 
     def receive(self, bit, incoming_port, devices_visited, time):
-        self.log(bit, "receive", incoming_port,time)
-        self.buffers[incoming_port.name].putdata(bit)
-        self.check_buffers()
+        self.log(bit, "receive", incoming_port.name, time)
+        self.buffers[incoming_port.name].put_data(bit)
+        self.check_buffers(devices_visited, time)
 
-    def put_data(self, data:str, port: Port):
+    def put_data(self, data: str, port: Port):
         if port.cable == None or port.write_channel.data != Data.Null or port.next == None:
             return False
         else:
             port.write_channel.data = data
+            return True
 
     def colision_protocol(self, switch_port, time):
         pbuffer = self.buffers[switch_port.name]
@@ -338,10 +355,10 @@ class Switch:
         # aumenta la cantidad de intentos fallidos
         pbuffer.failed_attempts += 1 
         # notifica que hubo una colision y la informacion no pudo enviarse
-        self.log(pbuffer.data, "send", switch_port.name, time, True)
+        self.log(pbuffer.bit_sending, "send", switch_port.name, time, True)
         # el rango se duplica en cada intento fallido
         if pbuffer.failed_attempts < 16:
-            nrand = random.randint(1, 2*self.failed_attempts*10)
+            nrand = random.randint(1, 2*pbuffer.failed_attempts*10)
             # dada una colision espero un tiempo cada vez mayor para poder volverla a enviar
             pbuffer.stopped_time = nrand * self.slot_time
         else:
@@ -359,44 +376,62 @@ class Switch:
     
 
     # comprobar el en cada momento el cambio interno de un switch
-    def check_buffers(self):
+    def check_buffers(self, devices_visited, time):
         for port in self.ports:
-            mybuffer = self.buffers[port]
+            mybuffer = self.buffers[port.name]
             incoming_frame = mybuffer.incoming_frame
             ## cumple el formato de una trama 16bit outmac 16 inmac 8 bit len 8bit0 data
             if len(incoming_frame) > 48:
                
-                lendatabin = incoming_frame[31:39]
-                lendata = int(lendata,2)
-                framedata = incoming_frame[47:]
-                if len(framedata) == lendata:
-                    macbin =  framedata[0:16]
-                    machex = '{:X}'.format(int(macbin,2))
-                    if machex not in self.map.keys():
+                lendatabin  = incoming_frame[32:40]
+                lendatabits = int(incoming_frame[32:40], 2) * 8
+                framedata = incoming_frame[48:]
+                if len(framedata) == lendatabits:
+                    destiny_mac = '{:X}'.format(int(incoming_frame[0:16], 2))
+
+                    # en caso que la mac este guardada en la tabla de del switch
+                    if destiny_mac not in self.map.keys():
                         
                         for p2 in [p for p in self.ports if p !=port]:
                             name = p2.name
-                            if self.buffers[name].sending_frame != "":
-                                self.buffers[name].send_frame_pending.put(incoming_frame)
+                            p2buffer =  self.buffers[name]
+                            if p2buffer.sending_frame != "":
+                                p2buffer.send_frame_pending.put(incoming_frame)
                             else:
-                                self.buffers[name].sending_frame = incoming_frame
-                    else:
-                        nextport = map[machex].name
-                        if self.buffers[nextport].sending_frame != "":
-                            self.buffer[nextport].send_frame_pending.put(incoming_frame)
-                        else:
-                            self.buffers[nextport].sending_frame = incoming_frame
-                
-                mybuffer.incoming_frame = ""
+                                p2buffer.sending_frame = incoming_frame
+                            nextbit = p2buffer.next_bit()
+                            self.init_transmission(nextbit, p2, devices_visited, time)
 
-               
-    def send(self, bit, incoming_port, devices_visited, time):
-        self.log(bit, "send", incoming_port.name, time)
-        if self.put_data(bit, incoming_port):
-            nextport = incoming_port.next
-            nextport.device.receive(bit, incoming_port, devices_visited, time)
+                    else:
+                        nextport = self.map[destiny_mac]
+                        npbuffer = self.buffers[nextport.name]
+                        if npbuffer.sending_frame != "":
+                            npbuffer.send_frame_pending.put(incoming_frame)
+                        else:
+                            npbuffer.sending_frame = incoming_frame
+                        nextbit = npbuffer.next_bit()
+                        self.init_transmission(nextbit, nextport, devices_visited, time)
+                
+                # mybuffer.incoming_frame = ""
+
+
+    def init_transmission(self, nextbit, incoming_port, devices_visited, time):
+        buffer = self.buffers[incoming_port.name]
+        
+        if self.put_data(nextbit, incoming_port):
+            self.send(nextbit, incoming_port, devices_visited, time)
         else:
             self.colision_protocol(incoming_port, time)    
+
+
+
+    def send(self, bit, incoming_port, devices_visited, time):
+
+        self.log(bit, "send", incoming_port.name, time)
+        nextport = incoming_port.next
+        nextport.device.receive(bit, incoming_port, devices_visited, time)
+        
+                
 
 
 
@@ -408,11 +443,11 @@ class Switch:
         return
         
         
-    def missing_data(self,incoming_port):
+    def missing_data(self,incoming_port, device_visited):
         return         
 
     def check_transmitting(self):
-        return any(buffer.transmitting for buffer in self.buffer.values())
+        return any(buffer.transmitting for buffer in self.buffers.values())
         
         
     

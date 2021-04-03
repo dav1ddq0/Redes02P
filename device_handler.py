@@ -211,7 +211,7 @@ class Device_handler:
                     # en caso que la informacion provenga a traves del port2
                     # esta deja de llegar desde el port2 a todas las conexiones que partan de el
                     port2.write_channel.data = objs.Data.Null
-                    port1.device.missing_data(port2)
+                    port1.device.missing_data(port2, self.devices_visited)
                     
                 # como los cables son duplex ambos casos pueden ocurrir a la vez    
     
@@ -239,14 +239,14 @@ class Device_handler:
                 if host.stopped_time == 0:
                     self.devices_visited.clear()
                     # vuelve a intentar enviar el bit que habia fallado previamente
-                    host.init_transmition(self.devices_visited, host.bit_sending, self.time)
+                    host.init_transmission(self.devices_visited, host.bit_sending, self.time)
             # en caso que el host este transmitiendo un informacion
             elif host.transmitting:
                 host.transmitting_time += 1
                 # compruebo si la informacion vencio el maximo time que puede estar en el canal
                 if host.transmitting_time % self.slot_time == 0:
                     if host.port.cable != None:
-                        host.port.cable.write_channel = objs.Data.Null
+                        host.port.write_channel.data = objs.Data.Null
                     host.bit_sending = None    
                     # dame el proximo bit a enviar por el host
                     nex_bit = host.next_bit()                   
@@ -262,7 +262,7 @@ class Device_handler:
                     if nex_bit != None:
                         
                        self.devices_visited.clear()
-                       host.init_transmition(self.devices_visited, nex_bit,  self.time)
+                       host.init_transmission(self.devices_visited, nex_bit,  self.time)
                        
                         
                     else:
@@ -274,17 +274,23 @@ class Device_handler:
         for switch in self.switches:
             for port in switch.ports:
                 portbuff = switch.buffers[port.name]
-                if portbuff.transmitting and portbuff.transmitting_time % self.slot_time == 0:
+                if portbuff.stopped:
+                    portbuff.stopped_time -= 1
                     self.devices_visited.clear()
-                    port.next.device.missing_data(port.next, self.devices_visited) 
-                    nextbit = portbuff.next_bit()
-                    if nextbit != None:
+                    port.device.init_transmission(portbuff.bit_sending, port, self.devices_visited, self.time)
 
+                elif portbuff.transmitting:
+                    portbuff.transmitting_time += 1
+                    if portbuff.transmitting_time % self.slot_time == 0:
                         self.devices_visited.clear()
-                        switch.send(nextbit, port, self.devices_visited, self.time)
-                    else:
-                        portbuff.transmitting = False
-                        portbuff.bit_sending = None                     
+                        port.next.device.missing_data(port.next, self.devices_visited) 
+                        nextbit = portbuff.next_bit()
+                        if nextbit != None:
+                            self.devices_visited.clear()
+                            switch.init_transmission(nextbit, port, self.devices_visited, self.time)
+                        else:
+                            portbuff.transmitting = False
+                            portbuff.bit_sending = None                     
 
 
     def send_frame(self ,origin_pc, destiny_mac:str, data:str, time: int):
@@ -297,11 +303,9 @@ class Device_handler:
             # en medio de una transmision o estar esperando producto de una colision a enviar un dato fallido 
             if not host.stopped and not host.transmitting:
                 nextbit = host.next_bit()
-                if host.put_data(nextbit):
-                    self.devices_visited.clear()
-                    host.init_transmition(self.devices_visited, nextbit, time)
-                else:
-                    host.colision_protocol(time)
+                self.devices_visited.clear()
+                host.init_transmission(self.devices_visited, nextbit, time)
+
 
            
     def send(self, origin_pc, data, time):
@@ -316,8 +320,6 @@ class Device_handler:
             # en medio de una transmision o estar esperando producto de una colision a enviar un dato fallido 
             if not host.stopped and not host.transmitting:
                 nextbit = host.next_bit()
-                if host.put_data(nextbit):
-                    self.devices_visited.clear()
-                    host.init_transmition(self.devices_visited, nextbit, time)
-                else:
-                    host.colision_protocol(time)
+                self.devices_visited.clear()
+                host.init_transmission(self.devices_visited, nextbit, time)
+                host.colision_protocol(time)
