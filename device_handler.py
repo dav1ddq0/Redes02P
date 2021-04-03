@@ -71,6 +71,11 @@ class Device_handler:
                 print(f"{bcolors.WARNING} invalid connection {bcolors.ENDC} port  {bcolors.OKGREEN}{name_port} {bcolors.ENDC}{errors[3]}")
                 return False
 
+        device = port.device
+        if device.mac == None:
+            print(f"{device.name} not has a network card connected")
+            return False        
+
         return True
 
     def __validate_setup_mac(self,pc, mac:str):
