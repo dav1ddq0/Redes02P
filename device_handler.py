@@ -282,6 +282,7 @@ class Device_handler:
                 elif portbuff.transmitting:
                     portbuff.transmitting_time += 1
                     if portbuff.transmitting_time % self.slot_time == 0:
+                        port.write_channel.data = objs.Data.Null
                         self.devices_visited.clear()
                         port.next.device.missing_data(port.next, self.devices_visited) 
                         nextbit = portbuff.next_bit()

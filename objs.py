@@ -419,6 +419,8 @@ class Switch:
         buffer = self.buffers[incoming_port.name]
         
         if self.put_data(nextbit, incoming_port):
+            buffer.transmitting = True
+            buffer.transmitting_time = 0
             self.send(nextbit, incoming_port, devices_visited, time)
         else:
             self.colision_protocol(incoming_port, time)    
