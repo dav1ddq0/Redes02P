@@ -27,4 +27,4 @@
 
 #### Un switch no decide mandar hacia el o los puertos un frame si este no cumple con los requitistos de que se tenga longitud mayor a 48 y que coincide el len de los 8 bists de la trama con el tamaño de la data.
 
-#### Puede darse carso que produzco de una desconexión conexión se corrompan las tramas pero el switch no deteca esto y considera como si fuera la trama no corrupta.
+#### Puede darse  el caso que se producto  de una desconexión conexión se corrompan las tramas pero el switch no detecta esto y considera lo ve como si fuera la trama no corrupta.
