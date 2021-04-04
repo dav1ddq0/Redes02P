@@ -1,3 +1,3 @@
-18 pc2_1 receive 0 ok
+19 pc2_1 receive 0 ok
 20 pc2_1 send 1 ok
 23 pc2_1 send 0 ok
