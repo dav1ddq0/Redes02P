@@ -28,3 +28,5 @@
 #### Un switch no decide mandar hacia el o los puertos un frame si este no cumple con los requitistos de que se tenga longitud mayor a 48 y que coincide el len de los 8 bists de la trama con el tamaño de la data.
 
 #### Puede darse  el caso que se producto  de una desconexión conexión se corrompan las tramas pero el switch no detecta esto y considera lo ve como si fuera la trama no corrupta.
+
+#### Consideramos que si conectas dos hubs que estén retransmitiendo información desde host entonces se produce una colisión. En cambio dos PC pueden estar enviando información una a la otra mediante un hub sin ningún inconveniente.
