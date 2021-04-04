@@ -249,6 +249,7 @@ class Device_handler:
                 if host.stopped_time == 0:
                     self.devices_visited.clear()
                     # vuelve a intentar enviar el bit que habia fallado previamente
+                    host.stopped = False
                     host.init_transmission(self.devices_visited, host.bit_sending, self.time)
             # en caso que el host este transmitiendo un informacion
             elif host.transmitting:

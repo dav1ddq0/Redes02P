@@ -1,5 +1,4 @@
 15 pc1_1 send 1 ok
 18 pc1_1 send 0 ok
-20 pc1_1 send 0 collision
-41 pc1_1 send 0 ok
-74 pc1_1 send None collision
+20 pc1_1 receive 1 ok
+23 pc1_1 receive 0 ok

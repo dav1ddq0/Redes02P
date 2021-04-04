@@ -217,8 +217,8 @@ class Hub:
         message = f"{time} {port} {action} {data}\n"
         self.__update_file(message)
 
-    def put_data(self, data:str, port: Port):
-        if port.cable != None and port.write_channel.data != Data.Null:
+    def put_data(self, data: str, port: Port):
+        if port.write_channel.data == Data.Null:
             port.write_channel.data = data
             return True
         else:
@@ -245,6 +245,7 @@ class Hub:
 
 
     def death_short(self, incoming_port, time: int):
+        self.bit_sending = None
         incoming_port.read_channel = Data.Null
         incoming_port.next.device.death_short(incoming_port.next, time)
         for port in [p for p in self.ports if p != incoming_port and p.cable != None]:
@@ -252,7 +253,7 @@ class Hub:
             if port.next != None:
                 port.next.device.death_short(port.next, time)
     
-    def missing_data(self,incoming_port, devices_visited):
+    def missing_data(self, incoming_port, devices_visited):
         self.bit_sending = None
         if self in devices_visited:
             return

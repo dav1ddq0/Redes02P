@@ -1,5 +1,4 @@
-15 <objs.Port object at 0x7fca55a5cd90> receive 1
-18 <objs.Port object at 0x7fca55a5cd90> receive 0
-20 <objs.Port object at 0x7fca55a5ccd0> receive 1
-41 <objs.Port object at 0x7fca55a5cd90> receive 0
-74 <objs.Port object at 0x7fca55a5ccd0> receive 1
+15 <objs.Port object at 0x7f83dfad0fa0> receive 1
+18 <objs.Port object at 0x7f83dfad0fa0> receive 0
+20 <objs.Port object at 0x7f83dfad0850> receive 1
+23 <objs.Port object at 0x7f83dfad0850> receive 0
