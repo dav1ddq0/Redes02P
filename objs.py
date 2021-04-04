@@ -175,6 +175,7 @@ class Host:
                 
 
     def death_short(self, incoming_port, time):
+        incoming_port.write_channel.data = Data.Null
         self.colision_protocol(time)
 
     def missing_data(self,incoming_port, devices_visited):
@@ -185,7 +186,7 @@ class Host:
         self.transmitting = True
         self.bit_sending = bit
         if self.put_data(bit):
-            self.send(bit,self.port, devices_visited, time)
+            self.send(bit, self.port, devices_visited, time)
         else:
             self.colision_protocol(time)    
         
@@ -217,14 +218,14 @@ class Hub:
         self.__update_file(message)
 
     def put_data(self, data:str, port: Port):
-        if port.write_channel.data != Data.Null:
+        if port.cable != None and port.write_channel.data != Data.Null:
             port.write_channel.data = data
             return True
         else:
             return False    
 
     def receive(self, bit, incoming_port, devices_visited, time):
-        self.log(bit, "receive", self.port, time)
+        self.log(bit, "receive", incoming_port, time)
         self.bit_sending = bit
         self.send(bit, incoming_port, devices_visited, time)
 
@@ -233,26 +234,23 @@ class Hub:
             return
         else:
             devices_visited.append(self)
-        
-        self.log(bit, "send", incoming_port, time)
-        self.put_data(bit, incoming_port)
-        devices_visited.append(self.name)
+
         for _port in self.ports:
-            if _port != incoming_port and _port.next != None and _port.next.device.name not in devices_visited:
+            if _port != incoming_port and  _port.cable!=None and _port.next != None:
                 if not self.put_data(bit, _port):
-                    self.device.death_short(incoming_port)
+                    self.death_short(incoming_port, time)
                     return
-                _port.next.device.receive(bit, _port.next, time)
-                _port.next.device.send(bit, _port.next, devices_visited, time)
+                _port.write_channel.data = bit
+                _port.next.device.receive(bit, _port.next, devices_visited, time)
 
 
-    def death_short(self, incoming_port):
+    def death_short(self, incoming_port, time: int):
         incoming_port.read_channel = Data.Null
-        incoming_port.next.device.death_short(incoming_port.next)
-        for port in [p for p in self.ports if p!= incoming_port]:
+        incoming_port.next.device.death_short(incoming_port.next, time)
+        for port in [p for p in self.ports if p != incoming_port and p.cable != None]:
             port.write_channel.data = Data.Null
             if port.next != None:
-                port.next.device.death_short(port.next)
+                port.next.device.death_short(port.next, time)
     
     def missing_data(self,incoming_port, devices_visited):
         self.bit_sending = None
@@ -261,10 +259,10 @@ class Hub:
         else:
             devices_visited.append(self)
         
-        for port in [p for p in self.ports if p!= incoming_port]:
+        for port in [p for p in self.ports if p != incoming_port and p.next != None]:
             port.write_channel.data = Data.Null
             if port.next != None:
-                port.next.device.missing_data(port.next)            
+                port.next.device.missing_data(port.next, devices_visited)
 
 
 class Buffer:

@@ -72,7 +72,7 @@ class Device_handler:
                 return False
 
         device = port.device
-        if device.mac == None:
+        if isinstance(device, objs.Host) and device.mac == None:
             print(f"{device.name} not has a network card connected")
             return False        
 
@@ -180,15 +180,15 @@ class Device_handler:
                 # se manda un sennal para tumbar la transmision en ambos lados y los host volveraran a intentar 
                 # transmitir la informacion luego de un tiempo aleatorio en cada uno 
                 
-                if isinstance(device1, objs.Hub) and isinstance(device2, objs.Hub):
-                    device1.death_short(port1,time)
-                    device2.death_short(port2,time)
+                if isinstance(device1, objs.Hub) and device1.bit_sending and isinstance(device2, objs.Hub) and device2.bit_sending:
+                    device1.death_short(port1, time)
+                    device2.death_short(port2, time)
 
-                if isinstance(device1,objs.Switch) and isinstance(device2,objs.Host):
-                    device1.map[device2.mac] = port1 
+                if isinstance(device1, objs.Switch) and isinstance(device2, objs.Host):
+                    device1.map[device2.mac] = port1
 
                 if isinstance(device1, objs.Hub) and device1.bit_sending:
-                    port1.write_channel = device1.bit_sending
+                    port1.write_channel.data = device1.bit_sending
                     self.devices_visited.clear()
                     device2.receive(device1.bit_sending, port2, self.devices_visited, time)
                 
@@ -196,7 +196,7 @@ class Device_handler:
                     device2.map[device1.mac] = port2
 
                 if isinstance(device2, objs.Hub) and device2.bit_sending:
-                    port2.write_channel = device2.bit_sending
+                    port2.write_channel.data = device2.bit_sending
                     self.devices_visited.clear()
                     device1.receive(device2.bit_sending, port1, self.devices_visited, time)
 
@@ -336,4 +336,3 @@ class Device_handler:
                 nextbit = host.next_bit()
                 self.devices_visited.clear()
                 host.init_transmission(self.devices_visited, nextbit, time)
-                host.colision_protocol(time)
